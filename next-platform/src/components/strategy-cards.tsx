@@ -4,7 +4,7 @@ import React, { useMemo } from 'react';
 import { useSimulationStore } from '../store';
 import { PensionEngine } from '../lib/engine/pension-engine';
 import { TaxEngine } from '../lib/engine/fiscal/tax-engine';
-import { TrendingUp, CheckCircle, ArrowRight, Info } from 'lucide-react';
+import { TrendingUp, ArrowRight, Info } from 'lucide-react';
 import legalData from '../lib/data/legal-anchors.json';
 import { StrategyModal } from './modals/StrategyModal';
 
