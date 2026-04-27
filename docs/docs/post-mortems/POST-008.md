@@ -1,0 +1,29 @@
+# POST-008: The Thelma Base Parity Reconciliation
+
+## 1. Incident Overview
+During the validation phase against a verified external Excel reference sheet (the "Thelma" case), a persistent discrepancy of ~\$3.14 MXN was detected in the ISR (tax) calculation, along with a critical divergence in total weeks calculated under Modalidad 40 (Deficit of 5 years).
+
+## 2. Root Cause Analysis
+
+### Discrepancy 1: ISR Calculation Margin
+- **Issue**: The `TaxEngine` calculated an exemption threshold and net pension slightly different from the Excel reference.
+- **Cause**: The `PensionEngine` was converting daily salary to monthly salary using `30` or `30.41` days sporadically, while the original Excel sheet strictly utilized the `30.4` factor as dictated by standard SAT/IMSS tax interpretations. This difference multiplied across a 15 UMA exemption factor led to fractional peso mismatches.
+
+### Discrepancy 2: Missing M40 Weeks
+- **Issue**: The simulation was missing exactly 260 weeks (5 years) of projected M40 investment.
+- **Cause**: The variable `is_ongoing_work` was set to `false`. The engine logically deduced that if the person is not working, they accumulate no future weeks. However, under Modalidad 40, the person *buys* those weeks explicitly. 
+
+## 3. Resolution & Fix Protocol
+
+1. **Standardized Divisor**: Refactored the `calculateISR` in `TaxEngine` to strictly multiply the threshold by `30.4`:
+   `const thresholdMonth = BaseUMA * 15 * 30.4;`
+   Refactored `PensionEngine` to pass net pension equivalently.
+2. **Explicit M40 Weeks Override**: Added a branch condition in the `calculateProjection` engine. If `strategyType === 'modalidad40'`, future weeks from `(TargetAge - CurrentAge) * 52` are forcefully added to the `finalWeeks` count, overriding the `is_ongoing_work` boolean constraint.
+
+## 4. Result
+Complete parity achieved. The simulation output matches the Excel baseline with zero margin of error.
+
+---
+**Status**: RESOLVED
+**Author**: Antigravity System
+**Date**: 2026-03-03

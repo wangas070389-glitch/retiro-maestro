@@ -1,0 +1,1450 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { 
+  Calculator, 
+  TrendingUp, 
+  AlertTriangle, 
+  FileText, 
+  DollarSign, 
+  UserCheck, 
+  Calendar,
+  Lock,
+  ChevronRight,
+  Info,
+  Menu,
+  X,
+  CreditCard,
+  Clock,
+  Users,
+  Briefcase,
+  ArrowLeft,
+  CheckCircle,
+  Landmark,
+  FileCheck,
+  BarChart3,
+  Target,
+  Sliders,
+  RefreshCcw,
+  Edit3,
+  ArrowRight,
+  ChevronsUp,
+  HelpCircle,
+  Scale,
+  Download,
+  FileSignature,
+  CalendarDays,
+  Hourglass,
+  Check,
+  ShieldCheck,
+  PlayCircle,
+  TrendingDown,
+  Building2
+} from 'lucide-react';
+
+const Card = ({ children, className = "" }) => (
+  <div className={`bg-white rounded-xl shadow-sm border border-gray-100 p-6 ${className}`}>
+    {children}
+  </div>
+);
+
+const Badge = ({ children, type = "success" }) => {
+  const colors = {
+    success: "bg-green-100 text-green-700 border border-green-200",
+    warning: "bg-yellow-50 text-yellow-700 border border-yellow-200",
+    danger: "bg-red-50 text-red-700 border border-red-200",
+    neutral: "bg-gray-100 text-gray-700 border border-gray-200",
+    blue: "bg-blue-50 text-blue-700 border border-blue-200",
+    purple: "bg-purple-50 text-purple-700 border border-purple-200",
+  };
+  return (
+    <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wide ${colors[type]}`}>
+      {children}
+    </span>
+  );
+};
+
+// CONSTANTES LEGALES 2026
+const UMA_2026 = 117.31;
+const UMA_MENSUAL = UMA_2026 * 30.4; 
+const TOPE_UMAS = 25;
+const SALARIO_TOPADO_DIARIO = UMA_2026 * TOPE_UMAS; // ~$2,932.75
+const SALARIO_TOPADO_MENSUAL = SALARIO_TOPADO_DIARIO * 30.4; // ~$89,155.60
+const FACTOR_FOX = 1.11;
+const EXENCION_ISR_UMAS = 15; 
+
+export default function RetiroMaestroApp() {
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedStrategy, setSelectedStrategy] = useState(null); 
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [hasOnboarded, setHasOnboarded] = useState(false);
+  const [notification, setNotification] = useState(null); 
+
+  // --- 1. PERFIL DE USUARIO ---
+  const [userProfile, setUserProfile] = useState({
+    name: "",
+    currentAge: 55, 
+    retirementAge: 60,
+    weeksCotized: 1200,
+    currentSalary: 25000, 
+    isEmployed: true, // NUEVO CAMPO: Estado laboral
+    hasSpouse: true,
+    children: 0
+  });
+
+  // --- ESTADOS CUSTOM MADE ---
+  const [customTargetPension, setCustomTargetPension] = useState(45000);
+  const [customYears, setCustomYears] = useState(3);
+  const [customResult, setCustomResult] = useState(null);
+
+  // --- ESTADOS PARA HERRAMIENTAS ---
+  const [retroactiveMonths, setRetroactiveMonths] = useState(24);
+  const [toolSpouse, setToolSpouse] = useState(true);
+  const [toolChildren, setToolChildren] = useState(0);
+  const [pensionForTax, setPensionForTax] = useState(65000); 
+
+  // --- 2. MOTOR DE CÁLCULO LEY 73 ---
+  const calculatePension = (weeksTotal, avgDailySalary, ageRetirement, spouse, children) => {
+    // CAP AUTOMÁTICO
+    const cappedAvgSalary = Math.min(avgDailySalary, SALARIO_TOPADO_DIARIO);
+
+    const cuantiaBasica = cappedAvgSalary * 0.13;
+    const excessWeeks = Math.max(0, weeksTotal - 500);
+    const incrementosAnuales = Math.floor(excessWeeks / 52);
+    const incrementoDiario = cappedAvgSalary * 0.0245 * incrementosAnuales;
+
+    const cuantiaDiariaTotal = cuantiaBasica + incrementoDiario;
+    const cuantiaMensual = cuantiaDiariaTotal * 30.4;
+
+    let ageFactor = 1.0;
+    if (ageRetirement <= 60) ageFactor = 0.75;
+    else if (ageRetirement === 61) ageFactor = 0.80;
+    else if (ageRetirement === 62) ageFactor = 0.85;
+    else if (ageRetirement === 63) ageFactor = 0.90;
+    else if (ageRetirement === 64) ageFactor = 0.95;
+    else ageFactor = 1.0; 
+
+    let pensionPorEdad = cuantiaMensual * ageFactor;
+
+    const asignacionEsposa = spouse ? 0.15 : 0.0;
+    const asignacionHijos = children * 0.10;
+    const asignacionSoledad = (!spouse && children === 0) ? 0.15 : 0.0;
+    const totalFamilyFactor = 1 + asignacionEsposa + asignacionHijos + asignacionSoledad;
+
+    let finalPension = pensionPorEdad * totalFamilyFactor * FACTOR_FOX;
+    return Math.floor(finalPension);
+  };
+
+  // --- CÁLCULO INVERSO (CUSTOM MADE) ---
+  useEffect(() => {
+    if (activeTab !== 'customBuilder') return;
+
+    const futureWeeks = customYears * 52;
+    const totalWeeks = Number(userProfile.weeksCotized) + futureWeeks;
+    const excessWeeks = Math.max(0, totalWeeks - 500);
+    const increments = Math.floor(excessWeeks / 52);
+    
+    const projectedRetirementAge = Math.max(60, Number(userProfile.currentAge) + customYears);
+    
+    let ageFactor = 1.0;
+    if (projectedRetirementAge <= 60) ageFactor = 0.75;
+    else if (projectedRetirementAge === 61) ageFactor = 0.80;
+    else if (projectedRetirementAge === 62) ageFactor = 0.85;
+    else if (projectedRetirementAge === 63) ageFactor = 0.90;
+    else if (projectedRetirementAge === 64) ageFactor = 0.95;
+    
+    const famFactor = 1 + (userProfile.hasSpouse ? 0.15 : 0) + (userProfile.children * 0.10) + ((!userProfile.hasSpouse && userProfile.children===0) ? 0.15 : 0);
+    const foxFactor = 1.11;
+
+    const factorSalario = (0.13 + (0.0245 * increments)) * 30.4 * ageFactor * famFactor * foxFactor;
+    
+    let requiredDailySalary = customTargetPension / factorSalario;
+    let isPossible = true;
+    let limitMessage = "";
+
+    if (requiredDailySalary > SALARIO_TOPADO_DIARIO) {
+        requiredDailySalary = SALARIO_TOPADO_DIARIO;
+        isPossible = false;
+        limitMessage = "El salario requerido supera el tope legal de 25 UMAs. Se ajustó al máximo posible.";
+    }
+
+    const monthlyCost = (requiredDailySalary * 30.4) * 0.125; 
+    const totalInvestment = monthlyCost * 12 * customYears;
+    const realPension = calculatePension(totalWeeks, requiredDailySalary, projectedRetirementAge, userProfile.hasSpouse, userProfile.children);
+
+    setCustomResult({
+        requiredDailySalary,
+        requiredMonthlySalary: requiredDailySalary * 30.4,
+        monthlyCost,
+        totalInvestment,
+        realPension,
+        isPossible,
+        limitMessage,
+        finishAge: projectedRetirementAge
+    });
+
+  }, [customTargetPension, customYears, userProfile, activeTab]);
+
+
+  // --- 3. PROYECCIÓN DE ESCALERA ---
+  const ageProjection = useMemo(() => {
+    if (!hasOnboarded) return [];
+    const projections = [];
+    const baseWeeks = Number(userProfile.weeksCotized);
+    const currentAge = Number(userProfile.currentAge);
+    const startAge = Math.max(60, currentAge);
+    const projectedSalaryDaily = Math.min(Number(userProfile.currentSalary) / 30.4, SALARIO_TOPADO_DIARIO);
+
+    for (let age = startAge; age <= 65; age++) {
+        // LÓGICA DE EMPLEO EN PROYECCIÓN INERCIAL
+        // Si está empleado, acumula semanas hasta esa edad.
+        // Si NO está empleado, las semanas se congelan en "baseWeeks".
+        const yearsPassed = age - currentAge;
+        const additionalWeeks = userProfile.isEmployed ? Math.max(0, yearsPassed * 52) : 0;
+        const projectedWeeks = baseWeeks + additionalWeeks;
+        
+        const amount = calculatePension(
+            projectedWeeks, 
+            projectedSalaryDaily, 
+            age, 
+            userProfile.hasSpouse, 
+            userProfile.children
+        );
+        const prevAmount = projections.length > 0 ? projections[projections.length - 1].amount : amount;
+        const percentIncrease = projections.length > 0 ? ((amount - prevAmount) / prevAmount * 100).toFixed(1) : 0;
+
+        projections.push({
+            age,
+            weeks: projectedWeeks,
+            percentageAge: age <= 60 ? '75%' : age === 61 ? '80%' : age === 62 ? '85%' : age === 63 ? '90%' : age === 64 ? '95%' : '100%',
+            amount,
+            percentIncrease,
+            isEmployedProjection: userProfile.isEmployed // Para saber si creció por semanas o solo por edad
+        });
+    }
+    return projections;
+  }, [userProfile, hasOnboarded]);
+
+  // --- 4. GENERADOR DE ESTRATEGIAS (LÓGICA HÍBRIDA + ESTATUS LABORAL) ---
+  const generatedStrategies = useMemo(() => {
+    if (!hasOnboarded) return [];
+
+    const currentAge = Number(userProfile.currentAge);
+    const targetRetirementAge = Number(userProfile.retirementAge);
+    const currentSalaryRaw = Number(userProfile.currentSalary); 
+    const currentSalaryCapped = Math.min(currentSalaryRaw, SALARIO_TOPADO_MENSUAL);
+    const currentDailySalaryCapped = currentSalaryCapped / 30.4;
+    
+    const isAlreadyTopped = currentSalaryRaw >= (SALARIO_TOPADO_MENSUAL * 0.98);
+    const isEarlyPlanning = currentAge < 55;
+
+    const calculateInvestment = (monthlySalary, years) => {
+      let total = 0;
+      let yearlyBreakdown = [];
+      let baseRate = 0.122; 
+      for (let i = 0; i < years; i++) {
+        let currentRate = baseRate + (i * 0.010); 
+        if (currentRate > 0.188) currentRate = 0.188; 
+        let adjustedSalary = monthlySalary * Math.pow(1.04, i); 
+        let yearlyCost = adjustedSalary * currentRate * 12;
+        total += yearlyCost;
+        yearlyBreakdown.push({
+          year: 2026 + i + (isEarlyPlanning ? (55 - currentAge) : 0),
+          amount: Math.floor(yearlyCost),
+          label: `Cuota ${(currentRate*100).toFixed(1)}%`,
+          type: monthlySalary > 20000 ? 'high' : 'low'
+        });
+      }
+      return { total: Math.floor(total), breakdown: yearlyBreakdown };
+    };
+
+    // --- ESTRATEGIA 1: INERCIAL ---
+    const projectionAge = Math.max(targetRetirementAge, 60);
+    const yearsToProject = Math.max(0, projectionAge - currentAge);
+    
+    // ** LÓGICA DE EMPLEO **
+    // Si empleado: Semanas crecen.
+    // Si desempleado: Semanas se quedan igual.
+    const weeksInercial = Number(userProfile.weeksCotized) + (userProfile.isEmployed ? (yearsToProject * 52) : 0);
+    
+    const pensionInercial = calculatePension(
+      weeksInercial, 
+      currentDailySalaryCapped, 
+      projectionAge,
+      userProfile.hasSpouse,
+      userProfile.children
+    );
+
+    // --- ESTRATEGIA 2: RAMPA (Híbrida/Ponderada) ---
+    const startAgeRampa = isEarlyPlanning ? 55 : currentAge;
+    const finishAgeRampa = startAgeRampa + 5; 
+    
+    // ** Nota: Al entrar a Rampa/M40, SIEMPRE acumulas semanas (pagadas), independiente de tu estatus previo **
+    const weeksAtStartRampa = Number(userProfile.weeksCotized) + (userProfile.isEmployed ? ((startAgeRampa - currentAge) * 52) : 0);
+    const totalWeeksRampa = weeksAtStartRampa + (5 * 52);
+
+    const salarioBajoMensual = UMA_MENSUAL * 1.5;
+    const avgSalaryRampaMensual = ((salarioBajoMensual * 36) + (SALARIO_TOPADO_MENSUAL * 24)) / 60;
+    
+    const pensionRampa = calculatePension(totalWeeksRampa, avgSalaryRampaMensual / 30.4, finishAgeRampa, userProfile.hasSpouse, userProfile.children);
+    
+    const invRampaLow = calculateInvestment(salarioBajoMensual, 3);
+    const invRampaHigh = calculateInvestment(SALARIO_TOPADO_MENSUAL, 2);
+    invRampaHigh.breakdown = invRampaHigh.breakdown.map(b => ({...b, year: b.year + 3}));
+    const invRampaTotal = invRampaLow.total + invRampaHigh.total;
+
+    let timelineRampa = [];
+    if (isEarlyPlanning) {
+        timelineRampa.push({ year: `Hoy - ${startAgeRampa} Años`, action: userProfile.isEmployed ? "Sigue Cotizando" : "Reactívate", desc: userProfile.isEmployed ? "Mantén tu empleo actual." : "Busca empleo o paga M10 para no perder semanas.", type: "neutral" });
+        timelineRampa.push({ year: "A los 55", action: "Inicio Rampa", desc: "Entra a M40 salario bajo.", type: "blue" });
+    } else {
+        timelineRampa.push({ year: "Año 1-3", action: "Semanas Baratas", desc: "Cotizar con 1.5 UMA. Costo bajo.", type: "neutral" });
+        timelineRampa.push({ year: "Año 4-5", action: "Impacto Salarial", desc: "Subir a 25 UMAs.", type: "success" });
+    }
+
+    // --- ESTRATEGIA 3: TOPADO INTELIGENTE (Adaptable) ---
+    const yearsToTarget = Math.max(0, targetRetirementAge - currentAge);
+    const effectiveYearsTopado = isEarlyPlanning ? 5 : Math.min(yearsToTarget, 5); 
+    const historicalYears = Math.max(0, 5 - effectiveYearsTopado); 
+
+    const startAgeTopado = isEarlyPlanning ? 55 : currentAge;
+    const finishAgeTopado = isEarlyPlanning ? 60 : (currentAge + effectiveYearsTopado); 
+    
+    // Semanas al inicio de la estrategia (dependen de si trabaja o no en el tiempo de espera)
+    const weeksAtStartTopado = Number(userProfile.weeksCotized) + (userProfile.isEmployed ? ((startAgeTopado - currentAge) * 52) : 0);
+    // Semanas finales (las de M40 siempre suman)
+    const totalWeeksTopado = weeksAtStartTopado + (effectiveYearsTopado * 52);
+
+    // BLENDED SALARY
+    const blendedMonthlySalary = ((currentSalaryCapped * historicalYears * 12) + (SALARIO_TOPADO_MENSUAL * effectiveYearsTopado * 12)) / 60;
+    const blendedDailySalary = blendedMonthlySalary / 30.4;
+
+    const pensionTopado = calculatePension(
+      totalWeeksTopado, 
+      blendedDailySalary, 
+      finishAgeTopado, 
+      userProfile.hasSpouse, 
+      userProfile.children
+    );
+    const invTopado = calculateInvestment(SALARIO_TOPADO_MENSUAL, effectiveYearsTopado);
+
+    let timelineTopado = [];
+    if (isEarlyPlanning) {
+        timelineTopado.push({ year: `Hoy - 55`, action: userProfile.isEmployed ? "Mantener Empleo" : "Cuidado: Semanas en Riesgo", desc: userProfile.isEmployed ? "Acumula semanas gratis con tu patrón." : "Si no cotizas, tu pensión base se diluye.", type: userProfile.isEmployed ? "success" : "warning" });
+        timelineTopado.push({ year: "A los 55", action: "Alta M40", desc: "Inicia pagos topados.", type: "blue" });
+    } else {
+        timelineTopado.push({ year: "Inicio", action: "Alta M40", desc: "Registro inmediato con 25 UMAs.", type: "success" });
+        timelineTopado.push({ year: "Continuo", action: "Pagos", desc: `${effectiveYearsTopado * 12} pagos mensuales.`, type: "blue" });
+    }
+
+    // --- RECOMENDACIONES FINALES ---
+    const isRampaBad = avgSalaryRampaMensual < currentSalaryCapped;
+    
+    // Lógica Topado vs Inercial:
+    // 1. Si está empleado y topado -> Inercial es mejor (0 costo).
+    // 2. Si está desempleado y "topado" (último salario alto) -> Topado es mejor porque Inercial congela semanas.
+    // 3. Si no está topado -> Topado es mejor (sube promedio).
+    
+    let isTopadoRedundant = false;
+    let topadoDescription = "";
+
+    if (isAlreadyTopped) {
+        if (userProfile.isEmployed) {
+            isTopadoRedundant = true; // Gana bien y le pagan las semanas.
+            topadoDescription = "Ya ganas el tope y tu patrón paga las cuotas. No gastes en M40.";
+        } else {
+            isTopadoRedundant = false; // Gana bien (histórico) pero NO suma semanas.
+            topadoDescription = "Tu último salario fue excelente, pero necesitas M40 para seguir sumando semanas y no estancarte.";
+        }
+    } else {
+        topadoDescription = `Mezcla ${historicalYears} años de tu sueldo actual con ${effectiveYearsTopado} años al tope.`;
+    }
+
+    return [
+      {
+        id: 1,
+        name: "Actual / Inercial",
+        monthlyPension: pensionInercial,
+        investment: 0,
+        roiMonths: 0,
+        description: !userProfile.isEmployed 
+            ? "ALERTA: Al no estar empleado, tus semanas NO aumentan y tu pensión se estanca." 
+            : isAlreadyTopped 
+                ? "Tu mejor opción. Salario topado y semanas pagadas por patrón." 
+                : `Proyección manteniendo tu empleo actual de $${currentSalaryRaw.toLocaleString()}.`,
+        recommended: isAlreadyTopped && userProfile.isEmployed, 
+        viable: true,
+        viabilityReason: "Cumple con tu edad objetivo.",
+        realRetirementAge: projectionAge,
+        details: null,
+        timeline: null
+      },
+      {
+        id: 2,
+        name: isEarlyPlanning ? "Plan Rampa Futura" : "Estrategia Rampa (3+2)",
+        monthlyPension: pensionRampa,
+        investment: invRampaTotal,
+        roiMonths: pensionRampa > pensionInercial ? Math.ceil(invRampaTotal / (pensionRampa - pensionInercial)) : 0,
+        description: isRampaBad
+            ? "¡Cuidado! Esta estrategia BAJARÍA tu promedio salarial actual."
+            : `Estrategia de bajo flujo. Promedia salarios bajos y altos.`,
+        recommended: false,
+        viable: !isRampaBad, 
+        viabilityReason: isRampaBad 
+            ? `Tu salario actual ($${currentSalaryRaw.toLocaleString()}) es mayor al promedio de la Rampa ($${Math.floor(avgSalaryRampaMensual).toLocaleString()}).` 
+            : "Duración fija de 5 años.",
+        realRetirementAge: finishAgeRampa,
+        timeline: timelineRampa,
+        yearlyCosts: [ ...invRampaLow.breakdown, ...invRampaHigh.breakdown ]
+      },
+      {
+        id: 3,
+        name: isEarlyPlanning ? "Plan Full Topado Futuro" : `Topado Inteligente (${effectiveYearsTopado} años)`,
+        monthlyPension: pensionTopado,
+        investment: invTopado.total,
+        roiMonths: pensionTopado > pensionInercial ? Math.ceil(invTopado.total / (pensionTopado - pensionInercial)) : 0,
+        description: topadoDescription,
+        recommended: (!isAlreadyTopped) || (isAlreadyTopped && !userProfile.isEmployed), // Recomendada si no está topado O si está topado pero desempleado
+        viable: true,
+        viabilityReason: "Estrategia optimizada.",
+        realRetirementAge: finishAgeTopado,
+        timeline: timelineTopado,
+        yearlyCosts: invTopado.breakdown
+      }
+    ];
+  }, [userProfile, hasOnboarded]);
+
+  const handleProfileUpdate = (e) => {
+    const { name, value, type, checked } = e.target;
+    setUserProfile(prev => ({
+        ...prev,
+        [name]: type === 'checkbox' 
+            ? checked 
+            : (type === 'number' ? (value === '' ? 0 : Number(value)) : value) 
+    }));
+  };
+
+  const handleStartCalculation = (e) => {
+    e.preventDefault();
+    if (userProfile.weeksCotized > 0 && userProfile.currentAge > 0) {
+        setHasOnboarded(true);
+        setActiveTab('dashboard');
+    } else {
+        showNotification("Por favor ingresa semanas y edad válidas.");
+    }
+  };
+
+  const handleEditProfile = () => {
+    setHasOnboarded(false);
+    setSelectedStrategy(null);
+  };
+
+  const handleStrategyClick = (strategy) => {
+    if (strategy.id === 1) return;
+    setSelectedStrategy(strategy);
+    setActiveTab('strategyDetail');
+  };
+
+  const showNotification = (msg) => {
+      setNotification(msg);
+      setTimeout(() => setNotification(null), 3000);
+  };
+
+  const handleDownloadReport = () => {
+      showNotification("Generando reporte PDF...");
+  };
+
+  const handleGenerateDoc = (docType) => {
+      showNotification(`Generando documento: ${docType}`);
+  };
+
+  const renderTools = () => {
+    const monthlyPayment2024 = 8500; 
+    const retroCost = monthlyPayment2024 * retroactiveMonths;
+    const surcharges = retroCost * 0.35; 
+    const totalRetroPayment = retroCost + surcharges;
+    const weeksGained = Math.floor(retroactiveMonths * 4.3);
+
+    const factorBase = 1.11; 
+    const factorSpouse = toolSpouse ? 0.15 : 0;
+    const factorChildren = toolChildren * 0.10;
+    const factorSoledad = (!toolSpouse && toolChildren === 0) ? 0.15 : 0;
+    const totalFactor = factorBase * (1 + factorSpouse + factorChildren + factorSoledad);
+
+    const exemptionAmount = UMA_MENSUAL * EXENCION_ISR_UMAS;
+    const taxableIncome = Math.max(0, pensionForTax - exemptionAmount);
+    let estimatedTax = 0;
+    if (taxableIncome > 0) {
+        if (taxableIncome < 10000) estimatedTax = taxableIncome * 0.10;
+        else if (taxableIncome < 20000) estimatedTax = 1000 + (taxableIncome - 10000) * 0.15;
+        else estimatedTax = 3500 + (taxableIncome - 20000) * 0.30; 
+    }
+    const netPension = pensionForTax - estimatedTax;
+
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => setActiveTab('dashboard')} className="text-slate-400 hover:text-slate-600">
+            <ChevronRight className="rotate-180" size={20}/>
+          </button>
+          <h2 className="text-2xl font-bold text-slate-800">Herramientas Financieras</h2>
+        </div>
+
+        {/* TAX CALCULATOR */}
+        <Card className="border-l-4 border-l-red-500">
+            <div className="flex items-start justify-between mb-4">
+                <div>
+                    <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                        <Scale className="text-red-600" size={20} />
+                        Calculadora de Impuestos (ISR)
+                    </h3>
+                    <p className="text-sm text-slate-500">Las pensiones mayores a 15 UMAS ({Math.floor(exemptionAmount).toLocaleString()} MXN) pagan impuestos.</p>
+                </div>
+                <Badge type="danger">Fiscal 2026</Badge>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div>
+                    <label className="block text-sm font-bold text-slate-700 mb-2">Pensión Mensual Estimada</label>
+                    <div className="flex items-center gap-2">
+                        <input 
+                            type="range" 
+                            min="30000" 
+                            max="100000" 
+                            step="1000"
+                            value={pensionForTax} 
+                            onChange={(e) => setPensionForTax(Number(e.target.value))}
+                            className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-red-600"
+                        />
+                        <span className="font-bold text-slate-800 w-24 text-right">${pensionForTax.toLocaleString()}</span>
+                    </div>
+                    
+                    <div className="mt-4 space-y-2 text-sm">
+                        <div className="flex justify-between text-slate-600">
+                            <span>Monto Exento (15 UMAS)</span>
+                            <span className="font-medium text-green-600">-${exemptionAmount.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                        </div>
+                        <div className="flex justify-between text-slate-600">
+                            <span>Base Gravable</span>
+                            <span className="font-medium">${taxableIncome.toLocaleString(undefined, {maximumFractionDigits:0})}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-lg flex flex-col justify-center items-center text-center">
+                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">Impuesto a Retener (Aprox)</p>
+                    <p className="text-2xl font-bold text-red-600">-${estimatedTax.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
+                    
+                    <div className="w-full h-px bg-slate-200 my-3"></div>
+                    
+                    <p className="text-xs text-slate-500 uppercase font-bold mb-1">Pensión Neta a Recibir</p>
+                    <p className="text-3xl font-bold text-green-700">${netPension.toLocaleString(undefined, {maximumFractionDigits:0})}</p>
+                </div>
+            </div>
+        </Card>
+
+        {/* Retroactivo */}
+        <Card className="border-l-4 border-l-purple-500">
+          <div className="flex items-start justify-between mb-4">
+            <div>
+              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <Clock className="text-purple-600" size={20} />
+                Calculadora Retroactiva
+              </h3>
+              <p className="text-sm text-slate-500">Paga meses pasados y recupera semanas.</p>
+            </div>
+          </div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-end">
+            <div>
+              <label className="block text-xs font-semibold text-slate-500 uppercase mb-2">Meses sin cotizar: {retroactiveMonths}</label>
+              <input 
+                type="range" 
+                min="0" max="58" 
+                value={retroactiveMonths} 
+                onChange={(e) => setRetroactiveMonths(Number(e.target.value))}
+                className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-purple-600"
+              />
+            </div>
+            
+            <div className="bg-slate-50 p-4 rounded-lg">
+              <p className="text-xs text-slate-400 mb-1">Pago Único (+Recargos)</p>
+              <p className="text-2xl font-bold text-slate-800">${totalRetroPayment.toLocaleString()}</p>
+            </div>
+
+            <div className="bg-purple-50 p-4 rounded-lg border border-purple-100">
+              <p className="text-xs text-purple-600 mb-1">Ganancia Inmediata</p>
+              <p className="text-sm font-medium text-purple-800">+ {weeksGained} Semanas</p>
+            </div>
+          </div>
+        </Card>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+              <CreditCard className="text-indigo-600" size={20} />
+              Simulador de Préstamo
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center text-sm p-3 bg-slate-50 rounded">
+                <span className="text-slate-600">Monto del Préstamo</span>
+                <span className="font-bold">$400,000</span>
+              </div>
+              <div className="flex justify-between items-center text-sm p-3 bg-green-50 text-green-700 rounded border border-green-200">
+                <span className="font-medium">Se paga con tu retroactivo de Afore</span>
+                <span className="font-bold text-xs bg-white px-2 py-0.5 rounded border border-green-200 text-green-700">VIABLE</span>
+              </div>
+            </div>
+          </Card>
+
+          <Card>
+            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+              <Users className="text-indigo-600" size={20} />
+              Simulador Familiar
+            </h3>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium text-slate-700 text-sm">Esposa / Concubina</p>
+                </div>
+                <button 
+                  onClick={() => setToolSpouse(!toolSpouse)}
+                  className={`w-10 h-5 rounded-full transition-colors relative ${toolSpouse ? 'bg-green-500' : 'bg-slate-300'}`}
+                >
+                  <div className={`absolute top-1 w-3 h-3 bg-white rounded-full transition-all ${toolSpouse ? 'left-6' : 'left-1'}`}></div>
+                </button>
+              </div>
+              <div className="p-3 bg-indigo-50 rounded-lg text-center">
+                <p className="text-xs text-indigo-600 mb-1">Factor Total</p>
+                <p className="text-xl font-bold text-indigo-800">x {totalFactor.toFixed(4)}</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+      </div>
+    );
+  };
+
+  const renderPaperwork = () => (
+    <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex items-center gap-3 mb-2">
+          <button onClick={() => setActiveTab('dashboard')} className="text-slate-400 hover:text-slate-600">
+            <ChevronRight className="rotate-180" size={20}/>
+          </button>
+          <h2 className="text-2xl font-bold text-slate-800">Gestión y Trámites (Docs)</h2>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="border-l-4 border-l-blue-500">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <FileSignature className="text-blue-600" size={20} />
+                    Generador de Escritos
+                </h3>
+                <p className="text-sm text-slate-500 mb-4">
+                    Crea automáticamente los documentos legales que el IMSS exige y no te da.
+                </p>
+                
+                <div className="space-y-3">
+                    <button 
+                        onClick={() => handleGenerateDoc('Solicitud Inscripción M40')}
+                        className="w-full flex items-center justify-between p-3 bg-slate-50 rounded border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center text-slate-500 font-bold group-hover:text-blue-600">1</div>
+                            <div className="text-left">
+                                <p className="font-bold text-slate-700 text-sm">Alta Modalidad 40</p>
+                                <p className="text-xs text-slate-400">Escrito libre de solicitud</p>
+                            </div>
+                        </div>
+                        <Download size={16} className="text-slate-400 group-hover:text-blue-600"/>
+                    </button>
+
+                    <button 
+                        onClick={() => handleGenerateDoc('Escrito Baja Patronal')}
+                        className="w-full flex items-center justify-between p-3 bg-slate-50 rounded border border-slate-200 hover:border-blue-400 hover:bg-blue-50 transition-colors group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-white border flex items-center justify-center text-slate-500 font-bold group-hover:text-blue-600">2</div>
+                            <div className="text-left">
+                                <p className="font-bold text-slate-700 text-sm">Baja Voluntaria Patrón</p>
+                                <p className="text-xs text-slate-400">Carta de renuncia derechos</p>
+                            </div>
+                        </div>
+                        <Download size={16} className="text-slate-400 group-hover:text-blue-600"/>
+                    </button>
+                </div>
+            </Card>
+
+            <Card className="border-l-4 border-l-green-500">
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <CalendarDays className="text-green-600" size={20} />
+                    Calendario de Pagos Inteligente
+                </h3>
+                <p className="text-sm text-slate-500 mb-4">
+                    Tu plan de pagos para no perder derechos (Fecha límite: día 17).
+                </p>
+
+                <div className="space-y-3">
+                    <div className="flex items-center gap-3 p-3 bg-green-50 rounded border border-green-100">
+                        <div className="text-center bg-white px-3 py-1 rounded shadow-sm">
+                            <p className="text-xs font-bold text-slate-400">FEB</p>
+                            <p className="text-xl font-bold text-green-700">17</p>
+                        </div>
+                        <div>
+                            <p className="font-bold text-slate-700 text-sm">Pago Febrero 2026</p>
+                            <p className="text-xs text-slate-500">Monto estimado: $10,800</p>
+                        </div>
+                        <Badge type="warning">Pendiente</Badge>
+                    </div>
+
+                    <div className="flex items-center gap-3 p-3 bg-slate-50 rounded border border-slate-100 opacity-60">
+                        <div className="text-center bg-white px-3 py-1 rounded shadow-sm">
+                            <p className="text-xs font-bold text-slate-400">MAR</p>
+                            <p className="text-xl font-bold text-slate-700">17</p>
+                        </div>
+                        <div>
+                            <p className="font-bold text-slate-700 text-sm">Pago Marzo 2026</p>
+                            <p className="text-xs text-slate-500">Monto estimado: $10,800</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div className="mt-4 p-3 bg-yellow-50 text-xs text-yellow-800 rounded border border-yellow-100">
+                    <span className="font-bold">Recordatorio:</span> Los montos subirán en Febrero 2027 por ajuste de UMA e inflación.
+                </div>
+            </Card>
+        </div>
+    </div>
+  );
+
+  const renderCustomBuilder = () => {
+    // Custom Builder UI (same as before)
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+         <button 
+          onClick={() => setActiveTab('dashboard')}
+          className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-2"
+        >
+          <ArrowLeft size={20} />
+          <span>Volver al Dashboard</span>
+        </button>
+
+        <div className="flex flex-col md:flex-row justify-between items-end gap-4">
+          <div>
+            <h2 className="text-2xl font-bold text-slate-800 flex items-center gap-2">
+                <Target className="text-indigo-600" />
+                Diseño a Medida (Ingeniería Inversa)
+            </h2>
+            <p className="text-slate-500 mt-1">Define tu objetivo y calcularemos la estrategia necesaria "hacia atrás".</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            <div className="lg:col-span-2 space-y-6">
+                <Card className="border-l-4 border-l-indigo-500">
+                    <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                        <Sliders size={20} className="text-slate-400"/>
+                        Configura tu Objetivo
+                    </h3>
+                    
+                    <div className="space-y-8">
+                        <div>
+                            <div className="flex justify-between mb-2">
+                                <label className="font-medium text-slate-700">Pensión Mensual Deseada</label>
+                                <span className="text-2xl font-bold text-indigo-700">${customTargetPension.toLocaleString()}</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="12000" 
+                                max="100000" 
+                                step="1000"
+                                value={customTargetPension}
+                                onChange={(e) => setCustomTargetPension(Number(e.target.value))}
+                                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                            />
+                            
+                            {customResult && !customResult.isPossible && (
+                                <div className="mt-3 p-3 bg-red-50 text-red-700 rounded-lg text-sm flex items-center gap-2 border border-red-200">
+                                    <AlertTriangle size={16}/>
+                                    <span>{customResult.limitMessage}</span>
+                                </div>
+                            )}
+                        </div>
+
+                        <div>
+                            <div className="flex justify-between mb-2">
+                                <label className="font-medium text-slate-700">Tiempo de Inversión (Años)</label>
+                                <span className="font-bold text-slate-700">{customYears} Años</span>
+                            </div>
+                            <input 
+                                type="range" 
+                                min="1" 
+                                max="5" 
+                                step="1"
+                                value={customYears}
+                                onChange={(e) => setCustomYears(Number(e.target.value))}
+                                className="w-full h-3 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600"
+                            />
+                            <p className="text-xs text-slate-400 mt-2">Menos tiempo requerirá un salario diario más alto para lograr el promedio.</p>
+                        </div>
+                    </div>
+                </Card>
+
+                {customResult && (
+                  <Card>
+                      <h3 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+                          <BarChart3 className="text-indigo-600" size={20}/>
+                          Estrategia Resultante
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                              <p className="text-xs text-slate-500 uppercase font-bold mb-1">Salario Diario a Registrar</p>
+                              <div className="flex items-baseline gap-1">
+                                  <span className="text-2xl font-bold text-slate-800">${customResult.requiredDailySalary.toLocaleString(undefined, {maximumFractionDigits:2})}</span>
+                              </div>
+                              <p className="text-xs text-indigo-600 mt-1">
+                                  {(customResult.requiredDailySalary / UMA_2026).toFixed(1)} UMAs
+                              </p>
+                          </div>
+                           <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                              <p className="text-xs text-slate-500 uppercase font-bold mb-1">Cuota Mensual Estimada</p>
+                              <span className="text-2xl font-bold text-slate-800">${customResult.monthlyCost.toLocaleString(undefined, {maximumFractionDigits: 0})}</span>
+                              <p className="text-xs text-slate-400 mt-1">Inversión Total: ${(customResult.totalInvestment/1000).toFixed(0)}k</p>
+                          </div>
+                      </div>
+                      
+                      <div className="mt-4 p-4 bg-indigo-50 rounded-lg border border-indigo-100 flex gap-4">
+                           <div className="p-2 bg-white rounded-full h-fit text-indigo-600 shadow-sm"><RefreshCcw size={20}/></div>
+                           <div>
+                               <h4 className="font-bold text-indigo-900 text-sm">¿Cómo lograrlo?</h4>
+                               <p className="text-sm text-indigo-700 mt-1 leading-relaxed">
+                                  Inscríbete en Modalidad 40 con un salario de <strong>{(customResult.requiredDailySalary / UMA_2026).toFixed(1)} UMAs</strong> durante <strong>{customYears} años</strong>. Terminarás tu estrategia a los <strong>{customResult.finishAge} años</strong>.
+                               </p>
+                           </div>
+                      </div>
+                  </Card>
+                )}
+            </div>
+
+            <div className="space-y-6">
+                <Card className="bg-slate-900 text-white border-none sticky top-6">
+                    <h4 className="font-bold mb-6 flex items-center gap-2">
+                        <FileCheck size={18}/> Resumen del Plan
+                    </h4>
+                    
+                    <div className="space-y-4">
+                        <div className="flex justify-between items-center pb-4 border-b border-slate-700">
+                             <span className="text-slate-400 text-sm">Objetivo Pensión</span>
+                             <span className="text-2xl font-bold text-green-400">${customResult?.realPension.toLocaleString()}</span>
+                        </div>
+
+                        <div className="space-y-2 text-sm">
+                             <div className="flex justify-between">
+                                <span className="text-slate-400">Duración</span>
+                                <span className="font-medium">{customYears} Años</span>
+                             </div>
+                             <div className="flex justify-between">
+                                <span className="text-slate-400">Edad Final</span>
+                                <span className="font-medium">{customResult?.finishAge} Años</span>
+                             </div>
+                        </div>
+
+                        <div className="mt-6">
+                            <button className="w-full bg-white text-slate-900 font-bold py-3 rounded-lg hover:bg-slate-100 transition-colors flex justify-center items-center gap-2">
+                                Guardar Estrategia <CheckCircle size={16}/>
+                            </button>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderStrategyDetail = () => {
+    if (!selectedStrategy) return null;
+    const maxYearlyCost = Math.max(...selectedStrategy.yearlyCosts.map(y => y.amount));
+
+    return (
+      <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <button 
+          onClick={() => { setSelectedStrategy(null); setActiveTab('dashboard'); }}
+          className="flex items-center gap-2 text-slate-500 hover:text-indigo-600 transition-colors mb-2"
+        >
+          <ArrowLeft size={20} />
+          <span>Volver al Dashboard</span>
+        </button>
+
+        <div className="flex flex-col md:flex-row justify-between items-start gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <h2 className="text-2xl font-bold text-slate-800">Plan de Ejecución: {selectedStrategy.name}</h2>
+              {!selectedStrategy.viable && (
+                  <span className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold border border-yellow-200">
+                      Modifica fecha de retiro
+                  </span>
+              )}
+            </div>
+            <p className="text-slate-500 mt-1">
+                Para lograr esta pensión, deberás retirarte a los <strong>{selectedStrategy.realRetirementAge} años</strong>.
+            </p>
+          </div>
+          <button className="bg-green-600 text-white px-5 py-2 rounded-lg font-bold shadow-md hover:bg-green-700 flex items-center gap-2">
+            <FileCheck size={18} />
+            Iniciar Trámite
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div className="lg:col-span-2 space-y-6">
+            <Card>
+              <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <BarChart3 className="text-indigo-600" size={20}/>
+                Flujo de Inversión Anual (Detallado)
+              </h3>
+              <div className="space-y-6">
+                {selectedStrategy.yearlyCosts.map((yearItem, idx) => (
+                  <div key={idx} className="relative">
+                    <div className="flex justify-between items-end mb-1">
+                      <div>
+                        <span className="font-bold text-slate-700 block">{yearItem.year}</span>
+                        <span className="text-xs text-slate-500">{yearItem.label}</span>
+                      </div>
+                      <span className="font-bold text-slate-800">${yearItem.amount.toLocaleString()}</span>
+                    </div>
+                    <div className="w-full h-3 bg-slate-100 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full rounded-full ${yearItem.type === 'low' ? 'bg-indigo-300' : 'bg-indigo-600'}`}
+                        style={{ width: `${(yearItem.amount / (maxYearlyCost * 1.1)) * 100}%` }} 
+                      ></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
+
+            <Card>
+              <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
+                <Clock className="text-indigo-600" size={20}/>
+                Cronograma de Acciones
+              </h3>
+              <div className="relative border-l-2 border-indigo-100 ml-3 space-y-8 pl-8 pb-2">
+                {selectedStrategy.timeline && selectedStrategy.timeline.map((step, idx) => (
+                  <div key={idx} className="relative">
+                    <div className={`absolute -left-[41px] w-6 h-6 rounded-full border-2 flex items-center justify-center bg-white border-blue-500 text-blue-500`}>
+                      <div className={`w-2 h-2 rounded-full bg-blue-500`} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-bold uppercase tracking-wider text-slate-400">{step.year}</span>
+                        <Badge type={step.type}>{step.action}</Badge>
+                      </div>
+                      <p className="text-slate-600 text-sm leading-relaxed bg-slate-50 p-3 rounded-lg border border-slate-100">
+                        {step.desc}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+                {!selectedStrategy.timeline && (
+                   <div className="p-4 bg-slate-50 text-slate-500 text-sm italic rounded-lg">
+                      Esta estrategia no requiere acciones complejas. Solo mantén tu cotización actual.
+                   </div>
+                )}
+              </div>
+            </Card>
+          </div>
+           {/* Sidebar Checklist */}
+          <div className="space-y-6">
+            <Card className="bg-slate-900 text-white border-none">
+              <h4 className="font-bold mb-4">Análisis Financiero</h4>
+              <div className="space-y-3 text-sm">
+                <div className="flex justify-between text-slate-300">
+                  <span>Inversión Total</span>
+                  <span className="text-white font-medium">${selectedStrategy.investment.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-slate-300">
+                  <span>Tiempo Recuperación</span>
+                  <span className="text-white font-medium">{selectedStrategy.roiMonths} meses</span>
+                </div>
+                <div className="h-px bg-slate-700 my-2"></div>
+                <div className="flex justify-between text-green-400 font-bold text-lg">
+                  <span>Pensión Final</span>
+                  <span>${selectedStrategy.monthlyPension.toLocaleString()}</span>
+                </div>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  const renderRiskAnalysis = () => (
+    <div className="bg-white p-8 rounded-xl shadow-sm border border-gray-100 text-center">
+        <ShieldCheck size={48} className="mx-auto text-green-500 mb-4"/>
+        <h3 className="text-xl font-bold text-slate-800">Auditoría de Riesgos</h3>
+        <p className="text-slate-500 mt-2">
+            El sistema no detecta anomalías graves en tus datos. Mantén tus documentos en orden.
+        </p>
+    </div>
+  );
+
+  const renderDashboard = () => (
+    <div className="space-y-6 animate-in fade-in duration-500">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-indigo-900 text-white p-6 rounded-xl shadow-lg">
+        <div>
+          <h2 className="text-2xl font-bold flex items-center gap-2">
+            {userProfile.name || "Usuario"}
+            <button onClick={handleEditProfile} className="bg-indigo-700 p-1.5 rounded-full hover:bg-indigo-600 transition-colors" title="Editar datos">
+                <Edit3 size={16} />
+            </button>
+          </h2>
+          <div className="flex flex-wrap gap-4 text-sm text-indigo-200 mt-2">
+            <span className="bg-indigo-800 px-2 py-1 rounded">Edad: {userProfile.currentAge} años</span>
+            <span className="bg-indigo-800 px-2 py-1 rounded">Meta Retiro: {userProfile.retirementAge} años</span>
+            <span className="bg-indigo-800 px-2 py-1 rounded">Semanas: {userProfile.weeksCotized}</span>
+            <span className={`px-2 py-1 rounded ${userProfile.isEmployed ? 'bg-green-700 text-green-100' : 'bg-red-700 text-red-100'}`}>
+                {userProfile.isEmployed ? 'Empleado' : 'Desempleado'}
+            </span>
+          </div>
+        </div>
+        <div className="mt-4 md:mt-0 flex gap-2">
+             <button onClick={handleDownloadReport} className="flex items-center gap-2 bg-white text-indigo-900 px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-indigo-50 transition-colors">
+                <Download size={16} /> Exportar Reporte
+             </button>
+        </div>
+      </div>
+
+      {/* WARNING FOR UNDERAGE USERS */}
+      {Number(userProfile.currentAge) < 60 && (
+        <Card className={`border-l-4 ${Number(userProfile.currentAge) < 55 ? "bg-orange-50 border-l-orange-500" : "bg-green-50 border-l-green-500"}`}>
+            <div className="flex items-start gap-4">
+                <div className={`bg-white p-2 rounded-full shadow-sm ${Number(userProfile.currentAge) < 55 ? "text-orange-500" : "text-green-500"}`}>
+                    {Number(userProfile.currentAge) < 55 ? <Hourglass size={24} /> : <PlayCircle size={24} />}
+                </div>
+                <div>
+                    <h3 className={`text-lg font-bold ${Number(userProfile.currentAge) < 55 ? "text-orange-800" : "text-green-800"}`}>
+                        {Number(userProfile.currentAge) < 55 
+                            ? `Etapa de Planeación (${userProfile.currentAge} años)` 
+                            : `¡Momento Ideal de Estrategia! (${userProfile.currentAge} años)`}
+                    </h3>
+                    <p className={`text-sm mt-1 leading-relaxed ${Number(userProfile.currentAge) < 55 ? "text-orange-700" : "text-green-700"}`}>
+                        {Number(userProfile.currentAge) < 55 
+                            ? "Aún es temprano para Modalidad 40 alta. Concéntrate en acumular semanas." 
+                            : "Estás en el rango perfecto (55-60) para iniciar tu Modalidad 40 Topada y maximizar tu pensión."}
+                    </p>
+                </div>
+            </div>
+        </Card>
+      )}
+
+      <Card className="border-l-4 border-l-purple-600">
+        <div className="flex items-center justify-between mb-6">
+            <div>
+                <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                    <ChevronsUp className="text-purple-600" />
+                    La Escalera del Retiro (Inercial)
+                </h3>
+                <p className="text-sm text-slate-500">
+                    Proyección de cuánto subiría tu pensión base solo por esperar y acumular semanas/edad.
+                </p>
+            </div>
+        </div>
+        
+        <div className="grid grid-cols-3 md:grid-cols-6 gap-3">
+            {ageProjection.map((proj, idx) => (
+                <div 
+                    key={proj.age} 
+                    className={`p-3 rounded-lg border text-center transition-all ${
+                        proj.age === Number(userProfile.retirementAge) 
+                            ? 'bg-purple-100 border-purple-500 ring-2 ring-purple-200 transform scale-105' 
+                            : 'bg-slate-50 border-slate-200'
+                    }`}
+                >
+                    <div className="text-xs font-bold text-slate-500 uppercase mb-1">A los {proj.age}</div>
+                    <div className="text-lg font-bold text-slate-800">${proj.amount.toLocaleString()}</div>
+                    <div className="text-[10px] text-slate-400 font-medium mb-1">
+                        {proj.percentageAge} • {proj.weeks} Sem
+                    </div>
+                    {idx > 0 && (
+                        <div className="text-xs font-bold text-green-600 bg-green-50 rounded px-1 mt-1">
+                            +{proj.percentIncrease}%
+                        </div>
+                    )}
+                    {proj.age === Number(userProfile.retirementAge) && (
+                        <div className="mt-1 text-[10px] font-bold text-purple-700">TU META</div>
+                    )}
+                </div>
+            ))}
+        </div>
+      </Card>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-bold text-slate-800">Estrategias y Viabilidad</h3>
+          </div>
+          
+          <div className="space-y-4">
+             {/* CUSTOM MADE CARD ENTRY */}
+             <div className="relative overflow-hidden rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 hover:bg-slate-100 transition-all cursor-pointer group">
+                <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                  <div className="md:col-span-1 flex justify-center">
+                    <div className="w-12 h-12 rounded-full bg-slate-200 flex items-center justify-center group-hover:bg-indigo-100 transition-colors">
+                        <Target className="text-slate-500 group-hover:text-indigo-600" size={24} />
+                    </div>
+                  </div>
+                  <div className="md:col-span-7">
+                    <h4 className="font-bold text-slate-800 text-lg group-hover:text-indigo-700">Diseño a Medida</h4>
+                    <p className="text-sm text-slate-500 mt-1">Tú decides con cuánto quieres jubilarte y nosotros calculamos qué necesitas hacer.</p>
+                  </div>
+                  <div className="md:col-span-4 flex justify-end">
+                     <button 
+                      onClick={() => setActiveTab('customBuilder')}
+                      className="flex items-center gap-2 bg-slate-800 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-900 transition-colors shadow-sm"
+                     >
+                       <Sliders size={16}/> Crear Plan
+                     </button>
+                  </div>
+                </div>
+            </div>
+
+            {generatedStrategies.map((strategy) => (
+              <div 
+                key={strategy.id}
+                className={`relative overflow-hidden rounded-xl border-2 transition-all ${
+                  strategy.recommended 
+                    ? 'border-indigo-600 bg-indigo-50/30' 
+                    : 'border-transparent bg-white shadow-sm hover:border-slate-200'
+                }`}
+              >
+                <div className="absolute top-0 right-0 flex">
+                    {!strategy.viable && (
+                        <div className="bg-yellow-100 text-yellow-800 text-xs px-3 py-1 font-bold border-b border-l border-yellow-200 flex items-center gap-1">
+                            {/* Icono de advertencia en lugar de reloj */}
+                            <AlertTriangle size={12} className="mr-1"/> NO CONVENIENTE
+                        </div>
+                    )}
+                    {strategy.recommended && (
+                        <div className="bg-indigo-600 text-white text-xs px-3 py-1 font-bold rounded-bl-lg">RECOMENDADA</div>
+                    )}
+                </div>
+
+                <div className="p-6 grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+                  <div className="md:col-span-5">
+                    <h4 className="font-bold text-slate-800 text-lg flex items-center gap-2">
+                        {strategy.name}
+                    </h4>
+                    <p className="text-sm text-slate-500 mt-1">{strategy.description}</p>
+                    
+                    {/* DETALLES DE VIABILIDAD EN CARD */}
+                    <div className={`mt-3 p-2 rounded border text-xs flex gap-2 items-start ${strategy.viable ? 'bg-slate-50 border-slate-100 text-slate-600' : 'bg-red-50 border-red-100 text-red-700'}`}>
+                        <Info size={14} className={`flex-shrink-0 mt-0.5 ${strategy.viable ? 'text-blue-400' : 'text-red-500'}`}/>
+                        <span>{strategy.viabilityReason}</span>
+                    </div>
+
+                  </div>
+                  <div className="md:col-span-3">
+                    <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Pensión Final</p>
+                    <p className={`text-xl font-bold ${strategy.viable ? 'text-green-700' : 'text-slate-500'}`}>${strategy.monthlyPension.toLocaleString()}</p>
+                    <p className="text-[10px] text-slate-400">A los {strategy.realRetirementAge} años</p>
+                  </div>
+                  <div className="md:col-span-4 flex flex-col items-end gap-2">
+                     <div className="text-right">
+                       <p className="text-xs text-slate-400 uppercase tracking-wider font-semibold">Inversión Total</p>
+                       <p className="text-sm font-medium text-slate-700">${strategy.investment.toLocaleString()}</p>
+                     </div>
+                     {strategy.id !== 1 && (
+                       <button 
+                        onClick={() => handleStrategyClick(strategy)}
+                        className="flex items-center gap-1 text-sm bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition-colors shadow-sm"
+                       >
+                         Ver Detalle <ChevronRight size={14}/>
+                       </button>
+                     )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        <div className="space-y-6">
+          <Card>
+            <h4 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <UserCheck size={18} className="text-indigo-600"/>
+              Tu Realidad
+            </h4>
+            <ul className="space-y-3 text-sm">
+                <li className="flex justify-between">
+                    <span className="text-slate-500">Edad Actual</span>
+                    <span className="font-medium">{userProfile.currentAge} Años</span>
+                </li>
+                <li className="flex justify-between">
+                    <span className="text-slate-500">Salario Base</span>
+                    <span className="font-medium text-indigo-600">${Number(userProfile.currentSalary).toLocaleString()}</span>
+                </li>
+                <li className="pt-2 border-t border-slate-100 text-xs text-slate-500 leading-snug">
+                    <strong className="text-slate-700">Nota Técnica:</strong><br/>
+                    El sistema promedia tu salario actual con la estrategia si faltan menos de 5 años para tu retiro.
+                </li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderOnboarding = () => (
+    <div className="min-h-screen bg-slate-50 flex flex-col justify-center items-center p-4">
+      <div className="max-w-4xl w-full bg-white rounded-2xl shadow-xl overflow-hidden flex flex-col md:flex-row">
+        
+        {/* Left Side: Hero */}
+        <div className="bg-indigo-900 p-8 md:p-12 text-white md:w-5/12 flex flex-col justify-between">
+          <div>
+            <div className="w-12 h-12 bg-indigo-500 rounded-xl flex items-center justify-center mb-6">
+               <TrendingUp size={28} className="text-white" />
+            </div>
+            <h1 className="text-3xl font-bold mb-4">Calculadora Maestra Ley 73</h1>
+            <p className="text-indigo-200 leading-relaxed mb-6">
+              Descubre cuánto aumentaría tu pensión con las nuevas reglas UMA 2026 y diseña tu estrategia de retiro ideal.
+            </p>
+            <ul className="space-y-3 text-sm text-indigo-100">
+                <li className="flex items-center gap-2"><CheckCircle size={16}/> Cálculo por Edad Real</li>
+                <li className="flex items-center gap-2"><CheckCircle size={16}/> Viabilidad de Estrategia</li>
+                <li className="flex items-center gap-2"><CheckCircle size={16}/> Análisis Fiscal 2026</li>
+            </ul>
+          </div>
+          <p className="text-xs text-indigo-400 mt-8">Versión 2026.5 • Blended Salary Active</p>
+        </div>
+
+        {/* Right Side: Form */}
+        <div className="p-8 md:p-12 md:w-7/12">
+            <h2 className="text-2xl font-bold text-slate-800 mb-6">Configura tu Perfil</h2>
+            <form onSubmit={handleStartCalculation} className="space-y-5">
+                
+                <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">Nombre</label>
+                    <input 
+                        type="text" 
+                        name="name" 
+                        placeholder="Ej. Roberto Méndez"
+                        value={userProfile.name} 
+                        onChange={handleProfileUpdate} 
+                        className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none transition-all"
+                        required
+                    />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Edad Actual</label>
+                        <input 
+                            type="number" 
+                            name="currentAge" 
+                            value={userProfile.currentAge} 
+                            onChange={handleProfileUpdate} 
+                            className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Edad Deseada Retiro</label>
+                        <select 
+                            name="retirementAge" 
+                            value={userProfile.retirementAge} 
+                            onChange={handleProfileUpdate} 
+                            className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none bg-white"
+                        >
+                            {[60,61,62,63,64,65].map(age => (
+                                <option key={age} value={age}>{age} Años</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Semanas Cotizadas</label>
+                        <input 
+                            type="number" 
+                            name="weeksCotized" 
+                            placeholder="Ej. 1250"
+                            value={userProfile.weeksCotized} 
+                            onChange={handleProfileUpdate} 
+                            className="w-full border border-slate-300 rounded-lg p-3 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            required
+                        />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-semibold text-slate-700 mb-2">Salario Mensual Actual</label>
+                        <div className="relative">
+                            <span className="absolute left-3 top-3 text-slate-400">$</span>
+                            <input 
+                                type="number" 
+                                name="currentSalary" 
+                                placeholder="Ej. 15000"
+                                value={userProfile.currentSalary} 
+                                onChange={handleProfileUpdate} 
+                                className="w-full border border-slate-300 rounded-lg p-3 pl-7 focus:ring-2 focus:ring-indigo-500 outline-none"
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                {/* NUEVO CAMPO: EMPLEADO */}
+                <div className="flex items-center gap-3 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                    <Building2 className="text-slate-500" size={20}/>
+                    <div className="flex-1">
+                        <p className="text-sm font-semibold text-slate-700">¿Estás empleado actualmente?</p>
+                        <p className="text-xs text-slate-400">Si no marcas esto, el sistema asume que no cotizas.</p>
+                    </div>
+                    <input 
+                        type="checkbox" 
+                        name="isEmployed" 
+                        checked={userProfile.isEmployed} 
+                        onChange={handleProfileUpdate} 
+                        className="w-6 h-6 accent-indigo-600 cursor-pointer" 
+                    />
+                </div>
+
+                <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 space-y-3">
+                    <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">Asignaciones Familiares</p>
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700 flex items-center gap-2">
+                            <Users size={16} className="text-indigo-500"/> ¿Tienes Esposa/Esposo?
+                        </label>
+                        <input 
+                            type="checkbox" 
+                            name="hasSpouse" 
+                            checked={userProfile.hasSpouse} 
+                            onChange={handleProfileUpdate} 
+                            className="w-5 h-5 accent-indigo-600 cursor-pointer" 
+                        />
+                    </div>
+                    <div className="flex items-center justify-between">
+                        <label className="text-sm text-slate-700 flex items-center gap-2">
+                             <Users size={16} className="text-indigo-500"/> Hijos (Menores/Estudiantes)
+                        </label>
+                        <input 
+                            type="number" 
+                            name="children" 
+                            min="0" max="5"
+                            value={userProfile.children} 
+                            onChange={handleProfileUpdate} 
+                            className="w-16 border border-slate-300 rounded p-1 text-center text-sm" 
+                        />
+                    </div>
+                </div>
+
+                <button 
+                    type="submit" 
+                    className="w-full bg-indigo-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-indigo-700 hover:shadow-indigo-200 transition-all flex items-center justify-center gap-2 mt-4"
+                >
+                    Generar Estrategias <ArrowRight size={20}/>
+                </button>
+            </form>
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 flex">
+      {/* Mobile Menu Overlay */}
+      {mobileMenuOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setMobileMenuOpen(false)} />
+      )}
+
+      {/* TOAST NOTIFICATION */}
+      {notification && (
+          <div className="fixed top-4 right-4 z-50 animate-in fade-in slide-in-from-top-4">
+              <div className="bg-slate-800 text-white px-4 py-3 rounded-lg shadow-lg flex items-center gap-3">
+                  <CheckCircle size={20} className="text-green-400"/>
+                  <span className="text-sm font-medium">{notification}</span>
+              </div>
+          </div>
+      )}
+
+      {/* RENDERIZADO CONDICIONAL: Si no ha hecho onboarding, muestra pantalla de captura */}
+      {!hasOnboarded ? (
+        renderOnboarding()
+      ) : (
+        <>
+            {/* Sidebar */}
+            <aside className={`
+                fixed lg:static inset-y-0 left-0 z-50 w-64 bg-slate-900 text-white transform transition-transform duration-200 ease-in-out
+                ${mobileMenuOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+            `}>
+                <div className="p-6 border-b border-slate-800 flex justify-between items-center">
+                <div className="flex items-center gap-2 font-bold text-xl tracking-tight">
+                    <div className="w-8 h-8 bg-indigo-500 rounded-lg flex items-center justify-center">
+                    <TrendingUp size={20} className="text-white" />
+                    </div>
+                    RetiroMaestro<span className="text-indigo-400">73</span>
+                </div>
+                <button onClick={() => setMobileMenuOpen(false)} className="lg:hidden text-slate-400">
+                    <X size={24} />
+                </button>
+                </div>
+
+                <nav className="p-4 space-y-2">
+                <button 
+                    onClick={() => { setActiveTab('dashboard'); setSelectedStrategy(null); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'dashboard' && !selectedStrategy ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <Calculator size={20} />
+                    <span className="font-medium">Mi Proyección</span>
+                </button>
+                
+                <button 
+                    onClick={() => { setActiveTab('tools'); setSelectedStrategy(null); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'tools' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <Briefcase size={20} />
+                    <span className="font-medium">Herramientas</span>
+                    <Badge type="blue">New</Badge>
+                </button>
+
+                <button 
+                    onClick={() => { setActiveTab('paperwork'); setSelectedStrategy(null); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'paperwork' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <FileText size={20} />
+                    <span className="font-medium">Gestión y Trámites</span>
+                    <Badge type="purple">Pro</Badge>
+                </button>
+
+                <button 
+                    onClick={() => { setActiveTab('risk'); setSelectedStrategy(null); setMobileMenuOpen(false); }}
+                    className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${activeTab === 'risk' ? 'bg-indigo-600 text-white' : 'text-slate-400 hover:bg-slate-800 hover:text-white'}`}
+                >
+                    <AlertTriangle size={20} />
+                    <span className="font-medium">Análisis de Riesgo</span>
+                </button>
+                </nav>
+            </aside>
+
+            {/* Main Content */}
+            <main className="flex-1 overflow-y-auto h-screen">
+                <header className="lg:hidden bg-white border-b border-gray-200 p-4 flex items-center justify-between sticky top-0 z-30">
+                <button onClick={() => setMobileMenuOpen(true)} className="text-slate-600">
+                    <Menu size={24} />
+                </button>
+                <span className="font-bold text-slate-800">RetiroMaestro73</span>
+                <div className="w-8"></div>
+                </header>
+
+                <div className="p-4 md:p-8 max-w-7xl mx-auto">
+                {activeTab === 'dashboard' && !selectedStrategy && renderDashboard()}
+                {activeTab === 'strategyDetail' && selectedStrategy && renderStrategyDetail()}
+                {activeTab === 'risk' && renderRiskAnalysis()}
+                {activeTab === 'tools' && renderTools()}
+                {activeTab === 'customBuilder' && renderCustomBuilder()}
+                {activeTab === 'paperwork' && renderPaperwork()}
+                </div>
+            </main>
+        </>
+      )}
+    </div>
+  );
+}

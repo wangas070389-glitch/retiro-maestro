@@ -1,0 +1,26 @@
+{
+  "folder_metadata": {
+    "protocol_id": "PXX",
+    "sovereignty_domain": "DOMAIN_NAME",
+    "status": "ACTIVE",
+    "last_audit": "2026-XX-XX"
+  },
+  "entries": [
+    {
+      "id": "UUIDv7",
+      "file_path": "docs/folder/document-name.md",
+      "status": "APPROVED",
+      "red_team_ref": "RED-UUID",
+      "consensus_hash": "sha256-hash-here",
+      "last_modified": "ISO-8601-TIMESTAMP"
+    }
+  ],
+  "audit_trail": [
+    {
+      "timestamp": "ISO-8601-TIMESTAMP",
+      "action": "PR_MERGE_VALIDATION",
+      "agent": "Sentinel-P17",
+      "result": "PASS"
+    }
+  ]
+}

@@ -1,0 +1,88 @@
+# === Dependencies ===
+node_modules/
+
+# === Next.js Build ===
+.next/
+out/
+
+# === Environment ===
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# === Database ===
+*.db
+*.db-journal
+prisma/dev.db
+prisma/dev.db-journal
+
+# === IDE ===
+.vscode/
+.idea/
+
+# === OS ===
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# === Logs ===
+*.log
+npm-debug.log*
+dev_server.log
+
+# === Build artifacts & temp ===
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+
+# === Scratch/debug files ===
+tmp/
+output.txt
+tsc_output.txt
+tsc_output_utf8.txt
+tsc_error.log
+tsc_error_utf8.log
+lint_output.txt
+lint_output_utf8.txt
+lint_log.txt
+build_log.txt
+build_log_2.txt
+dashboard_head.txt
+dashboard_html.txt
+error_dump.html
+
+# === One-off utility scripts (not app source) ===
+next-platform/fix_*.js
+next-platform/extract_pdfs.cjs
+next-platform/pdf_extractor.js
+next-platform/sim_thelma.cjs
+next-platform/sulema_*.txt
+next-platform/sulema_*.json
+next-platform/thelma_*.txt
+src/verify-thelma-manual.ts
+
+# === Extracted text/data (not source) ===
+extracted_pdfs_output.txt
+sulema_raw.txt
+sulema_pure_text.txt
+sulema_result.json
+thelma_raw.txt
+thelma_pure_text.txt
+thelma_out.txt
+
+# === Package lock (optional — keep if you want deterministic installs) ===
+# package-lock.json
+
+# === Generated report artifacts (not source) ===
+sulema_report_text.html
+thelma_report_text.html
+thelma_report_text.txt
+tree_dump.txt
+
+# === Non-source directories ===
+GenericContext-Geminis/
+production_artifacts/
+
+# === Gemini agent data ===
+.agents/

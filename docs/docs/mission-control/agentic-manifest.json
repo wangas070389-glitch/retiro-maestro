@@ -1,0 +1,19 @@
+{
+  "manifest_version": "2026.1",
+  "system_purpose": "GENERIC_SYSTEM_PURPOSE_STATEMENT",
+  "tools": [
+    {
+      "name": "FUNCTION_OR_TOOL_NAME",
+      "description": "CLEAR_SEMANTIC_INTENT_FOR_LLM",
+      "parameters": {
+        "PARAM_1": "DESCRIPTION_OF_INPUT",
+        "PARAM_2": "DESCRIPTION_OF_INPUT"
+      },
+      "constraints": "TECHNICAL_OR_BUSINESS_LIMITATIONS"
+    }
+  ],
+  "safety_boundaries": {
+    "data_integrity": "PRIORITY_OVER_PERFORMANCE",
+    "max_latency_ms": 200
+  }
+}
