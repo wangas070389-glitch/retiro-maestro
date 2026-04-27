@@ -8,7 +8,11 @@ const engine = new PensionEngine();
 
 async function main() {
     console.log("Seeding B2C Golden User: Carlos Mendoza...");
-    const hashedPassword = await bcrypt.hash('Marketing123!', 10);
+
+    if (!process.env.SEED_USER_PASSWORD) {
+        throw new Error("Missing SEED_USER_PASSWORD environment variable");
+    }
+    const hashedPassword = await bcrypt.hash(process.env.SEED_USER_PASSWORD, 10);
 
     const user = await prisma.user.upsert({
         where: { email: 'carlos.m@retiromaestro.com' },
