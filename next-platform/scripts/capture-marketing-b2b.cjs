@@ -19,7 +19,11 @@ async function executeB2BCapture() {
     console.log("Navigating to login...");
     await page.goto('http://localhost:3000/login');
     await page.fill('input[name="email"]', 'contacto@asesoreselite.com');
-    await page.fill('input[name="password"]', 'Marketing123!');
+
+    if (!process.env.SEED_USER_PASSWORD) {
+        throw new Error("Missing SEED_USER_PASSWORD environment variable");
+    }
+    await page.fill('input[name="password"]', process.env.SEED_USER_PASSWORD);
     await page.click('button[type="submit"]');
     
     await page.waitForTimeout(3000);

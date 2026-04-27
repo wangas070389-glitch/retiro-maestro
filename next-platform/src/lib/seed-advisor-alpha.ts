@@ -5,7 +5,11 @@ const prisma = new PrismaClient();
 
 async function main() {
     console.log("Seeding B2B Golden Data: Asesores de Retiro Elite...");
-    const hashedPassword = await bcrypt.hash('Marketing123!', 10);
+
+    if (!process.env.SEED_USER_PASSWORD) {
+        throw new Error("Missing SEED_USER_PASSWORD environment variable");
+    }
+    const hashedPassword = await bcrypt.hash(process.env.SEED_USER_PASSWORD, 10);
 
     const advisor = await prisma.user.upsert({
         where: { email: 'contacto@asesoreselite.com' },
