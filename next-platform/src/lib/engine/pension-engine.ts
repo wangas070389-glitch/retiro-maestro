@@ -238,14 +238,9 @@ export class PensionEngine {
           }
         } else {
           // Inercial Mode: 
-          if (input.is_ongoing_work !== false) {
-            // User keeps working at current salary (input.salary_prom)
-            // This shifts the average window forward
-            simSalaryProm = ((input.salary_prom * investWeeks) + (input.salary_prom * histWeeks)) / 250;
-          } else {
-            // User is unemployed - weeks and salary average remain frozen (Sovereign Stagnation)
-            simSalaryProm = input.salary_prom;
-          }
+          // Whether the user keeps working at current salary or is unemployed,
+          // the salary average remains the same mathematically.
+          simSalaryProm = input.salary_prom;
         }
       }
 
