@@ -31,7 +31,7 @@ export class InverseDesigner {
     let currentPension = 0;
     let iterations = 0;
 
-    const projection = PensionEngine.projectInput(input);
+    const projection = PensionEngine.projectInput(input, 'modalidad40');
     const m40_rate = 0.12256; 
     
     // 2. Convergence Loop (Threshold: $10 MXN or 15 iterations)
