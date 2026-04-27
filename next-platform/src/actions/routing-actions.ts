@@ -53,48 +53,42 @@ export async function evaluateAuctionMatrix() {
         // Find all leads where SLA has expired AND they are not claimed
         const now = new Date();
         
-        const expiredInternal = await db.user.findMany({
+        // Rule 2 Geo-Spill: Move Expired Internals to Local Pool (+24 Hours TTL)
+        const newSla = new Date();
+        newSla.setHours(newSla.getHours() + SLA_LOCAL_HOURS);
+
+        const internalUpdateResult = await db.user.updateMany({
             where: {
                 leadStatus: "PENDING_INTERNAL",
                 slaExpiresAt: { lt: now }
-            } as any
-        }) as any[];
+            },
+            data: {
+                leadStatus: "PENDING_LOCAL",
+                slaExpiresAt: newSla
+            }
+        });
 
-        // Rule 2 Geo-Spill: Move Expired Internals to Local Pool (+24 Hours TTL)
-        for (const lead of expiredInternal) {
-            const newSla = new Date();
-            newSla.setHours(newSla.getHours() + SLA_LOCAL_HOURS);
-            
-            await db.user.update({
-                where: { id: lead.id },
-                data: {
-                    leadStatus: "PENDING_LOCAL",
-                    slaExpiresAt: newSla
-                } as any
-            });
-            console.log(`[ROUTING ENGINE] Lead ${lead.id} spilled over to LOCAL_POOL.`);
+        if (internalUpdateResult.count > 0) {
+            console.log(`[ROUTING ENGINE] ${internalUpdateResult.count} leads spilled over to LOCAL_POOL.`);
         }
 
         // Rule 3 Fallback: Move Expired Locals to National Pool
-        const expiredLocal = await db.user.findMany({
+        const localUpdateResult = await db.user.updateMany({
             where: {
                 leadStatus: "PENDING_LOCAL",
                 slaExpiresAt: { lt: now }
-            } as any
-        }) as any[];
+            },
+            data: {
+                leadStatus: "PENDING_NATIONAL",
+                slaExpiresAt: null // No expiration, open to anyone
+            }
+        });
 
-        for (const lead of expiredLocal) {
-            await db.user.update({
-                where: { id: lead.id },
-                data: {
-                    leadStatus: "PENDING_NATIONAL",
-                    slaExpiresAt: null // No expiration, open to anyone
-                } as any
-            });
-            console.log(`[ROUTING ENGINE] Lead ${lead.id} degraded to NATIONAL_POOL.`);
+        if (localUpdateResult.count > 0) {
+            console.log(`[ROUTING ENGINE] ${localUpdateResult.count} leads degraded to NATIONAL_POOL.`);
         }
 
-        return { success: true, processed: expiredInternal.length + expiredLocal.length };
+        return { success: true, processed: internalUpdateResult.count + localUpdateResult.count };
     } catch (error) {
         console.error("Evaluation Error", error);
         return { success: false };
