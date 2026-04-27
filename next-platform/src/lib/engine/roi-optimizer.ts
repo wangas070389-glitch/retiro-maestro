@@ -1,4 +1,4 @@
-import { PensionEngine, PensionInput, PensionResult } from './pension-engine';
+import { PensionEngine, PensionInput } from './pension-engine';
 import legalData from '../data/legal-anchors.json';
 
 export interface ExecutiveRecommendation {
