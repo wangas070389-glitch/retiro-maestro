@@ -282,16 +282,21 @@ export class PensionEngine {
    * Projects a PensionInput into the future based on retirement age and continuity.
    * This ensures business logic remains in the Core, not the Edge.
    */
-  public static projectInput(input: { 
-    age: number, 
-    weeks: number, 
-    retirement_age?: number, 
-    is_ongoing_work?: boolean 
-  }): { age: number, weeks: number } {
+  public static projectInput(
+    input: {
+      age: number,
+      weeks: number,
+      retirement_age?: number,
+      is_ongoing_work?: boolean
+    },
+    strategyMode: 'modalidad40' | 'inercial' = 'inercial'
+  ): { age: number, weeks: number } {
     const currentAge = input.age;
     const targetAge = Math.max(currentAge, input.retirement_age || 0);
     const ageDiff = targetAge - currentAge;
-    const shouldGainWeeks = input.is_ongoing_work !== false;
+
+    // RED-015: Only gain weeks if 'is_ongoing_work' is true, OR if strategy is 'modalidad40'
+    const shouldGainWeeks = (strategyMode === 'modalidad40') || (input.is_ongoing_work !== false);
 
     return {
       age: targetAge,

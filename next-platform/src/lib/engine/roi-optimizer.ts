@@ -52,7 +52,7 @@ export class ROIOptimizer {
             
             const projectedSalaryProm = ((uma25 * Math.min(250, investWeeks)) + (input.salary_prom * histWeeks)) / 250;
             
-            const projection = PensionEngine.projectInput(input);
+            const projection = PensionEngine.projectInput(input, 'modalidad40');
             
             const result = this.engine.calculate({
                 ...input,
