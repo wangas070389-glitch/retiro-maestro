@@ -26,7 +26,10 @@ async function main() {
 
     const admin = await prisma.user.upsert({
         where: { email: 'admin@retiromaestro.com' },
-        update: {},
+        update: {
+            role: 'ADMIN',
+            isApproved: true,
+        },
         create: {
             email: 'admin@retiromaestro.com',
             name: 'Admin User',
@@ -38,7 +41,9 @@ async function main() {
 
     const sovereign = await prisma.user.upsert({
         where: { email: 'sovereign@retiromaestro.com' },
-        update: {},
+        update: {
+            isApproved: true,
+        },
         create: {
             email: 'sovereign@retiromaestro.com',
             name: 'Sovereign Citizen',
