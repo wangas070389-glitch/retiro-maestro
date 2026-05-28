@@ -1,14 +1,11 @@
 'use client';
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useSimulationStore } from '../store';
-import { PensionEngine } from '../lib/engine/pension-engine';
-import { TaxEngine } from '../lib/engine/fiscal/tax-engine';
+import { calculateStrategiesAction } from '../actions/calculate-pension';
 import { TrendingUp, ArrowRight, Info } from 'lucide-react';
 import legalData from '../lib/data/legal-anchors.json';
 import { StrategyModal } from './modals/StrategyModal';
-
-const engine = new PensionEngine();
 
 // Investment Helper based on Prototype Logic
 const calculateInvestment = (monthlySalary: number, years: number, startYearOffset: number = 0) => {
@@ -28,169 +25,22 @@ const calculateInvestment = (monthlySalary: number, years: number, startYearOffs
 
 export const StrategyCards: React.FC = () => {
     const { scenarioA } = useSimulationStore();
+    const [strategies, setStrategies] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
-    const calculateBlendedSalary = (currentDaily: number, targetDaily: number, investYears: number) => {
-        const investWeeks = Math.min(250, investYears * 52);
-        const histWeeks = 250 - investWeeks;
-        return ((targetDaily * investWeeks) + (currentDaily * histWeeks)) / 250;
-    };
-
-    const strategies = useMemo(() => {
-        const baseInput = scenarioA.input;
-        const yearsLeft = Math.max(0, (baseInput.retirement_age || 65) - baseInput.age);
-        const monthsLeft = yearsLeft * 12;
-
-        // Baseline (Inercial)
-        const inercialWeeks = baseInput.weeks + (baseInput.is_ongoing_work !== false ? yearsLeft * 52 : 0);
-        const inercialResult = engine.calculate({
-            ...baseInput,
-            weeks: inercialWeeks,
-            age: baseInput.retirement_age || 65
+    useEffect(() => {
+        let active = true;
+        setLoading(true);
+        calculateStrategiesAction(scenarioA.input).then((res) => {
+            if (active) {
+                setStrategies(res.strategies);
+                setLoading(false);
+            }
+        }).catch((err) => {
+            console.error("Failed to fetch strategies:", err);
+            if (active) setLoading(false);
         });
-        const baseNet = TaxEngine.calculateISR(inercialResult.with_decree_111).netPension;
-
-        if (yearsLeft === 0) return []; // No strategy to calculate if already at retirement age
-
-        const UMA_MONTHLY = legalData.uma_2026 * 30.416;
-        const TOP_SALARY = UMA_MONTHLY * 25;
-        const LOW_SALARY = Math.max(UMA_MONTHLY * 1.5, baseInput.salary_prom * 30.416); // Cannot drop below current
-
-        // --- OPTIMIZER ENGINE ---
-        // We will sweep the investment duration from 1 year to max years
-        // The goal of the Optimal is to find the best Bang FOR Buck (Highest Delta per $1 invested)
-
-        let bestEfficiency = 0;
-        let optimalStrategyData: any = null;
-
-        let absoluteMaxPension = 0;
-        let absoluteMaxStrategyData: any = null;
-
-        const viableStrategies: any[] = [];
-
-        // Sweep from 1 year of M40 up to yearsLeft
-        for (let targetYears = 1; targetYears <= yearsLeft; targetYears++) {
-
-            // MATH-015: If targetYears < 5, we might still have historical salary diluting the average.
-            // But ANY time beyond 4.8 years (250 weeks) invested AT THE END will solely govern the salary_prom.
-
-            const lowYears = Math.max(0, yearsLeft - targetYears);
-            const highYears = targetYears;
-
-            // 250 weeks = ~4.8 years.
-            // If highYears >= 5, the shifting 250-week window is perfectly covered by TOP_SALARY.
-            // If highYears < 5, the window is a blend of TOP_SALARY and whatever was before it.
-            let projectedBlendedSalary = baseInput.salary_prom;
-
-            const highWeeks = Math.min(250, highYears * 52);
-            // The remainder of the 250 weeks might be covered by LOW_SALARY (if any) or Historical Salary
-            const remainingRequiredWeeks = 250 - highWeeks;
-            const lowWeeks = Math.min(remainingRequiredWeeks, lowYears * 52);
-            const historicalWeeks = Math.max(0, remainingRequiredWeeks - lowWeeks);
-
-            const topDaily = TOP_SALARY / 30.416;
-            const lowDaily = LOW_SALARY / 30.416;
-
-            projectedBlendedSalary = ((topDaily * highWeeks) + (lowDaily * lowWeeks) + (baseInput.salary_prom * historicalWeeks)) / 250;
-
-            const projectedWeeks = baseInput.weeks + (yearsLeft * 52); // M40 continuously buys weeks
-
-            const result = engine.calculate({
-                ...baseInput,
-                weeks: projectedWeeks,
-                salary_prom: projectedBlendedSalary,
-                age: baseInput.retirement_age || 65
-            });
-
-            const netResult = TaxEngine.calculateISR(result.with_decree_111).netPension;
-
-            const invLowTotal = calculateInvestment(LOW_SALARY, lowYears, 0);
-            const invHighTotal = calculateInvestment(TOP_SALARY, highYears, lowYears);
-            const totalInv = invLowTotal + invHighTotal;
-
-            const deltaPension = netResult - baseNet;
-            const efficiencyRatio = totalInv > 0 ? deltaPension / totalInv : 0; // Growth per $1
-            const roiMonths = deltaPension > 0 ? (totalInv / deltaPension) : 999;
-
-            const iterationData = {
-                highYears,
-                lowYears,
-                netPension: netResult,
-                totalInvestment: totalInv,
-                avgMonthlyInvestment: monthsLeft > 0 ? totalInv / monthsLeft : 0,
-                targetSalary: projectedBlendedSalary,
-                rawTargetDaily: topDaily,
-                delta: deltaPension,
-                roiMonths: roiMonths,
-            };
-
-            // Capture Absolute Max
-            if (netResult > absoluteMaxPension) {
-                absoluteMaxPension = netResult;
-                absoluteMaxStrategyData = iterationData;
-            }
-
-            // Capture Optimal (We favor efficiency, but with a minimum threshold so it's a meaningful change)
-            // e.g. Don't pick 1 year just because it's cheap if the pension is still low. We look for the sweetspot.
-            // We penalize if the ROI is too long (> 60 months)
-            const penalizedEfficiency = roiMonths > 60 ? efficiencyRatio * (60 / roiMonths) : efficiencyRatio;
-
-            if (penalizedEfficiency > bestEfficiency) {
-                bestEfficiency = penalizedEfficiency;
-                optimalStrategyData = iterationData;
-            }
-
-            if (deltaPension > 0) {
-                viableStrategies.push(iterationData);
-            }
-        }
-
-        let conservativeStrategyData: any = null;
-        if (viableStrategies.length > 0) {
-            viableStrategies.sort((a, b) => a.totalInvestment - b.totalInvestment);
-            conservativeStrategyData = viableStrategies[0];
-        }
-
-        const buildCard = (id: string, name: string, description: string, data: any, color: 'indigo' | 'amber' | 'emerald') => ({
-            id,
-            name,
-            description,
-            ...data,
-            color,
-            percentageIncrease: ((data.netPension - baseNet) / baseNet) * 100,
-            lifetimeImpact: data.delta * 12 * 20
-        });
-
-        const cards = [];
-
-        const isOptEqMax = optimalStrategyData?.highYears === absoluteMaxStrategyData?.highYears;
-        const isConsEqOpt = conservativeStrategyData?.highYears === optimalStrategyData?.highYears;
-
-        if (conservativeStrategyData && (!isConsEqOpt || viableStrategies.length === 1)) {
-            const hasRampa = conservativeStrategyData.lowYears > 0;
-            cards.push(buildCard('conservador',
-                `Ruta Conservadora`,
-                `Menor barrera de entrada. Inversión mínima requerida (${hasRampa ? `${conservativeStrategyData.lowYears}+${conservativeStrategyData.highYears}` : `${conservativeStrategyData.highYears} años`}).`,
-                conservativeStrategyData, 'emerald'
-            ));
-        }
-
-        if (optimalStrategyData) {
-            const hasRampa = optimalStrategyData.lowYears > 0;
-            cards.push(buildCard('optimo',
-                `Estrategia Recomendada`,
-                `Mayor equilibrio costo-beneficio. Modelo matemático ${hasRampa ? `${optimalStrategyData.lowYears}+${optimalStrategyData.highYears}` : `${optimalStrategyData.highYears} años`}.`,
-                optimalStrategyData, 'amber'
-            ));
-        }
-
-        if (absoluteMaxStrategyData && !isOptEqMax) {
-            cards.push(buildCard('maximo', `Techo Legal Máximo (${absoluteMaxStrategyData.highYears} Años)`,
-                `Estrategia de cotización al tope de 25 UMAs para alcanzar el máximo beneficio de ley.`,
-                absoluteMaxStrategyData, 'indigo'
-            ));
-        }
-
-        return cards;
+        return () => { active = false; };
     }, [scenarioA.input]);
 
     const [selectedStrat, setSelectedStrat] = React.useState<string | null>(null);

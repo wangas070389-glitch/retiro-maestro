@@ -195,7 +195,7 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
                                         key={sc.type}
                                         className={`p-8 rounded-[2.5rem] border transition-all duration-500 ${selectedId === sc.type ? 'bg-indigo-600 border-transparent text-white shadow-2xl scale-[1.02]' : 'bg-white dark:bg-slate-900 border-slate-100 dark:border-slate-800'}`}
                                     >
-                                        <h3 className="text-xl font-black mb-6">{sc.name} {sc.type === 'OPTIMO_3Y' && '⭐'}</h3>
+                                        <h3 className="text-xl font-black mb-6">{sc.name} {sc.type === 'M40_3Y' && '⭐'}</h3>
                                         <div className="space-y-4 mb-8">
                                             <div className="flex justify-between items-center py-2 border-b border-white/10">
                                                 <span className="text-xs uppercase opacity-60 font-bold">Pensión</span>
@@ -222,7 +222,7 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
                                     <div className="space-y-4">
                                         <div className="text-xs font-black text-indigo-600 dark:text-indigo-400 tracking-widest uppercase">Argumentario Comercial</div>
                                         <blockquote className="text-xl italic text-slate-700 dark:text-slate-300 leading-relaxed">
-                                            "Sr. {initialData.name.split(' ')[0]}, hoy su pensión es de ${baseScenario.result.net_pension.toLocaleString()}, pero activando {bestScenario.name} la subimos a ${bestScenario.result.net_pension.toLocaleString()}. Estamos hablando de asegurar ${lifetimeLoss.toLocaleString()} más para su familia."
+                                            &quot;Sr. {initialData.name.split(' ')[0]}, hoy su pensión es de ${baseScenario.result.net_pension.toLocaleString()}, pero activando {bestScenario.name} la subimos a ${bestScenario.result.net_pension.toLocaleString()}. Estamos hablando de asegurar ${lifetimeLoss.toLocaleString()} más para su familia.&quot;
                                         </blockquote>
                                     </div>
                                     <div className="flex flex-col sm:flex-row gap-4">

@@ -77,7 +77,7 @@ export default function LandingPage() {
                             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
                             <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
                         </span>
-                        Actualizado con UMA 2024 y Ley 73
+                        Actualizado con UMA 2026 y Ley 73
                     </div>
 
                     <h1 className="text-5xl md:text-7xl font-bold tracking-tighter mb-8 leading-[1.1] text-slate-900">
@@ -203,7 +203,7 @@ export default function LandingPage() {
                         </div>
                         <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2">
                             <LineChartIcon className="w-5 h-5 text-indigo-600" />
-                            Impacto del Modelo Ã“ptimo (Ejemplo real)
+                            Impacto del Modelo Óptimo (Ejemplo real)
                         </h3>
                         <div className="h-[300px] w-full mt-4">
                             <ResponsiveContainer width="100%" height="100%">

@@ -1,5 +1,5 @@
-import legalData from '../data/legal-anchors.json';
-import { TaxEngine } from './fiscal/tax-engine';
+import legalData from '../data/legal-anchors.json' with { type: 'json' };
+import { TaxEngine } from './fiscal/tax-engine.ts';
 
 export interface PensionInput {
   weeks: number;

@@ -101,7 +101,7 @@ export async function toggleUserBlockAction(userId: string, isBlocked: boolean) 
     }
 }
 
-const PasswordSchema = z.string().min(6, "La contraseña debe tener al menos 6 caracteres");
+const PasswordSchema = z.string().min(8, "La contraseña debe tener al menos 8 caracteres");
 
 export async function resetUserPasswordAction(userId: string, newPasswordPlain: string) {
     try {

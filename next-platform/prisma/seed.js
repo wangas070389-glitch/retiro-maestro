@@ -31,6 +31,8 @@ async function main() {
             email: 'admin@retiromaestro.com',
             name: 'Admin User',
             password: hashedPassword,
+            role: 'ADMIN',
+            isApproved: true,
         },
     })
 
@@ -41,6 +43,7 @@ async function main() {
             email: 'sovereign@retiromaestro.com',
             name: 'Sovereign Citizen',
             password: await bcrypt.hash('Freedom123!', 10),
+            isApproved: true,
         }
     })
 

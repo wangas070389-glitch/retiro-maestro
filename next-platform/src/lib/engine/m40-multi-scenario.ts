@@ -1,5 +1,5 @@
 import { PensionEngine, PensionInput, PensionResult } from './pension-engine';
-import legalData from '../data/legal-anchors.json';
+import legalData from '../data/legal-anchors.json' with { type: 'json' };
 
 export type ScenarioType = 'BASE' | 'M40_1Y' | 'M40_2Y' | 'M40_3Y' | 'M40_5Y';
 

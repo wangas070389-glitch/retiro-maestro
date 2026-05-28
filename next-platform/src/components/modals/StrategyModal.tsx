@@ -4,7 +4,7 @@ import React, { useMemo, useState, useEffect } from 'react';
 import { X, TrendingUp, ShieldCheck, History, Info, FileText, CheckCircle2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
-import { PensionEngine, PensionInput } from '../../lib/engine/pension-engine';
+import { PensionInput } from '../../lib/engine/pension-engine';
 import { TaxEngine } from '../../lib/engine/fiscal/tax-engine';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ResumenTab } from './tabs/ResumenTab';
@@ -13,6 +13,7 @@ import { DesgloseTab } from './tabs/DesgloseTab';
 import { RetirementReport } from '../reports/RetirementReport';
 import { ComprehensiveReport } from '../reports/ComprehensiveReport';
 import { DossierBuilder, ForensicBundle } from '../../lib/engine/audit/dossier-builder';
+import { calculateProjectionAction } from '../../actions/calculate-pension';
 
 interface StrategyModalProps {
     isOpen: boolean;
@@ -25,8 +26,6 @@ interface StrategyModalProps {
     targetDailyHigh?: number;
     splitYear?: number;
 }
-
-const engine = new PensionEngine();
 
 const containerVariants = {
     hidden: { opacity: 0, scale: 0.95, y: 20 },
@@ -71,34 +70,36 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
     const { data: session } = useSession();
     const [bundle, setBundle] = useState<ForensicBundle | null>(null);
     const [activeTab, setActiveTab] = useState<TabType>('resumen');
-    const [strategyProjection, setStrategyProjection] = useState<any[]>([]);
+    const [projectionData, setProjectionData] = useState<any[]>([]);
+    const [basePensionData, setBasePensionData] = useState<number>(0);
     const [baselineProjection, setBaselineProjection] = useState<any[]>([]);
+    const [loading, setLoading] = useState(false);
 
-    const projectionData = useMemo(() => {
-        if (!isOpen) return []; // Pre-optimization
-        return engine.calculateProjection(
+    useEffect(() => {
+        if (!isOpen) return;
+
+        let active = true;
+        setLoading(true);
+        calculateProjectionAction(
             input,
-            null, // Multi-year based on retirement_age
             strategyMode,
             monthlyInvestment,
             targetDailySalary,
             targetDailyHigh,
             splitYear
-        );
-    }, [input, strategyMode, monthlyInvestment, targetDailySalary, targetDailyHigh, splitYear, isOpen]);
-
-    // Calculate baseline to find delta and lifetime impact
-    const basePensionData = useMemo(() => {
-        if (!isOpen) return 0;
-        const yearsLeft = Math.max(0, (input.retirement_age || 65) - input.age);
-        const inercialWeeks = input.weeks + (input.is_ongoing_work !== false ? yearsLeft * 52 : 0);
-        const inercialResult = engine.calculate({
-            ...input,
-            weeks: inercialWeeks,
-            age: input.retirement_age || 65
+        ).then((res) => {
+            if (active) {
+                setProjectionData(res.projection);
+                setBasePensionData(res.basePensionData);
+                setBaselineProjection(res.baselineProjection);
+                setLoading(false);
+            }
+        }).catch((err) => {
+            console.error("Failed to fetch projection:", err);
+            if (active) setLoading(false);
         });
-        return TaxEngine.calculateISR(inercialResult.with_decree_111).netPension;
-    }, [input, isOpen]);
+        return () => { active = false; };
+    }, [input, strategyMode, monthlyInvestment, targetDailySalary, targetDailyHigh, splitYear, isOpen]);
 
     useEffect(() => {
         if (projectionData.length > 0 && isOpen) {
@@ -107,21 +108,8 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
                 mode: strategyMode,
                 data: projectionData[projectionData.length - 1]
             }).then(setBundle);
-
-            // Calculate Baseline Projection for "AS-IS" contrast
-            const yearsLeft = Math.max(0, (input.retirement_age || 65) - input.age);
-            const baseline = engine.calculateProjection(
-                input,
-                yearsLeft,
-                'inercial',
-                0,
-                undefined,
-                undefined,
-                undefined
-            );
-            setBaselineProjection(baseline);
         }
-    }, [projectionData, strategyName, strategyMode, isOpen, input]);
+    }, [projectionData, strategyName, strategyMode, isOpen]);
 
     // Reset tab on close
     useEffect(() => {

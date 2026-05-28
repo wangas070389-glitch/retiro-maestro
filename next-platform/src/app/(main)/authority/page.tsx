@@ -12,7 +12,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
 import legalData from '@/lib/data/legal-anchors.json';
 import { generatePaymentCalendar, M40MonthlyPayment } from '../../../lib/engine/m40-calculator';
-import { PensionEngine } from '../../../lib/engine/pension-engine';
+import { calculateProjectionAction } from '../../../actions/calculate-pension';
 import { generateDocumentAction } from '../../../actions/generate-document';
 import { useToast } from '../../../components/ui/toast-context';
 import { useSearchParams } from 'next/navigation';
@@ -99,7 +99,6 @@ export default function AuthorityPage() {
         setVerifying(null);
     };
 
-    const engine = useMemo(() => new PensionEngine(), []);
     const [selectedDossierId, setSelectedDossierId] = useState<string | null>(null);
     const [projectionForPdf, setProjectionForPdf] = useState<any[]>([]);
 
@@ -113,13 +112,18 @@ export default function AuthorityPage() {
                 const monthsToTarget = Math.max(0, (d.input.retirement_age || 65) - d.input.age) * 12;
                 const monthlyInv = isM40 ? (d.result?.investment / (monthsToTarget || 60)) : 0;
 
-                const proj = engine.calculateProjection(d.input, null, strategyMode, monthlyInv, targetDailySalary);
-                setProjectionForPdf(proj);
+                calculateProjectionAction(d.input, strategyMode, monthlyInv, targetDailySalary)
+                    .then((res) => {
+                        setProjectionForPdf(res.projection);
+                    })
+                    .catch((err) => {
+                        console.error("Failed to calculate projection for PDF:", err);
+                    });
             } else {
                 setProjectionForPdf([]);
             }
         }
-    }, [selectedDossierId, dossiers, engine]);
+    }, [selectedDossierId, dossiers]);
 
     useEffect(() => {
         if (!selectedDossierId && dossiers.length > 0) {
@@ -273,7 +277,7 @@ export default function AuthorityPage() {
                                         <div className="text-emerald-400 font-bold text-xs tracking-widest uppercase mb-1 flex items-center gap-2">
                                             {isB2C ? 'Búsqueda Activa' : leadStatus.replace('PENDING_', 'SUBASTA ')} <ShieldCheck size={14} />
                                         </div>
-                                        <p className="text-sm font-medium text-emerald-100 italic">"Esperando primer reclamo de talento certificado..."</p>
+                                         <p className="text-sm font-medium text-emerald-100 italic">&quot;Esperando primer reclamo de talento certificado...&quot;</p>
                                     </div>
                                     <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden">
                                         <div className="w-1/3 h-full bg-emerald-400 animate-[loading_2s_infinite]"></div>

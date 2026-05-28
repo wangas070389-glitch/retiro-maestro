@@ -21,15 +21,14 @@ import { ExecutiveRecommendationComponent } from '../../../components/monetizati
 import { ExecutiveRecommendation } from '@/lib/engine/roi-optimizer';
 import { RetirementReport } from '../../../components/reports/RetirementReport';
 import { ComprehensiveReport } from '../../../components/reports/ComprehensiveReport';
-import { PensionEngine, PensionResult } from '../../../lib/engine/pension-engine';
+import { PensionResult } from '../../../lib/engine/pension-engine';
 import { DossierBuilder, ForensicBundle } from '../../../lib/engine/audit/dossier-builder';
 
 import { TrialStatus } from '../../../lib/trial-guard';
 import { checkTrialStatusAction } from '@/actions/check-trial-status';
 import { TrialBadge } from '../../../components/trial/TrialBadge';
 import { TrialLockout } from '../../../components/trial/TrialLockout';
-
-const engine = new PensionEngine();
+import { calculateProjectionAction, getMaxPossiblePensionAction } from '@/actions/calculate-pension';
 
 export default function Dashboard() {
     const { data: session } = useSession();
@@ -47,6 +46,8 @@ export default function Dashboard() {
     const [trialStatus, setTrialStatus] = useState<TrialStatus | null>(null);
     const [vigenciaAlert, setVigenciaAlert] = useState<{ message: string, type: 'warning' | 'error' } | null>(null);
     const [leadStatusObj, setLeadStatusObj] = useState<{status: string, state: string, advisorName: string | null} | null>(null);
+    const [inercialProjection, setInercialProjection] = useState<any[]>([]);
+    const [maxPossiblePension, setMaxPossiblePension] = useState<number>(0);
 
     const userRole = (session?.user as any)?.role as Role || 'USER';
     const userTier = (session?.user as any)?.tier as Tier || 'FREE';
@@ -97,6 +98,13 @@ export default function Dashboard() {
         });
     }, []);
 
+    // Fetch max possible pension reactively
+    useEffect(() => {
+        getMaxPossiblePensionAction(scenarioA.input)
+            .then(setMaxPossiblePension)
+            .catch(err => console.error("Failed to get max possible pension:", err));
+    }, [scenarioA.input]);
+
     const handleInputMutation = (field: string, newValue: number) => {
         updateScenarioA({ [field]: newValue });
 
@@ -105,16 +113,6 @@ export default function Dashboard() {
             setCertifiedDossier(null);
         }
     };
-
-    const inercialProjection = result ? engine.calculateProjection(
-        scenarioA.input,
-        Math.max(0, (scenarioA.input.retirement_age || 65) - scenarioA.input.age),
-        'inercial',
-        0,
-        undefined,
-        undefined,
-        undefined
-    ) : [];
 
     useEffect(() => {
         if (result && inercialProjection.length > 0) {
@@ -126,14 +124,12 @@ export default function Dashboard() {
         } else {
             setBundle(null);
         }
-    }, [result]);
+    }, [result, inercialProjection]);
 
     async function handleSubmit(formData: FormData) {
         setLoading(true);
         setVigenciaAlert(null); // Reset
         const response = await calculatePensionAction(formData);
-
-        setLoading(false);
 
         if (response.success) {
             setResult(response.data);
@@ -146,6 +142,18 @@ export default function Dashboard() {
             } else {
                 showToast("Pensión calculada exitosamente", "success");
             }
+
+            // Fetch projection from server
+            try {
+                const projRes = await calculateProjectionAction(
+                    scenarioA.input,
+                    'inercial',
+                    0
+                );
+                setInercialProjection(projRes.projection);
+            } catch (err) {
+                console.error("Failed to calculate projection:", err);
+            }
         } else {
             if (response.needsRecovery) {
                 setVigenciaAlert({ message: response.error, type: 'error' });
@@ -155,6 +163,7 @@ export default function Dashboard() {
                 showToast("Error: " + response.error, "error");
             }
         }
+        setLoading(false);
     }
 
 
@@ -268,7 +277,7 @@ export default function Dashboard() {
                             </div>
 
                             <div className="mt-4 pt-4 border-t border-indigo-500/30 flex justify-between items-center text-xs text-indigo-200">
-                                <span>Techo Legal Máximo Estimado (25 UMAs): <strong className="text-white">${Math.round(engine.maxPossiblePension(scenarioA.input)).toLocaleString('es-MX')} MXN</strong></span>
+                                <span>Techo Legal Máximo Estimado (25 UMAs): <strong className="text-white">${Math.round(maxPossiblePension).toLocaleString('es-MX')} MXN</strong></span>
                                 <button onClick={() => setActiveTab('estrategias')} className="underline hover:text-white transition-colors">Descubrir cómo</button>
                             </div>
                         </div>

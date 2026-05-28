@@ -9,9 +9,7 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 import { useToast } from './ui/toast-context';
 import { StrategyModal } from './modals/StrategyModal';
-import { PensionEngine } from '../lib/engine/pension-engine';
-import { TaxEngine } from '../lib/engine/fiscal/tax-engine';
-import { InverseDesigner } from '../lib/engine/inverse-designer';
+import { calculateInverseDesignAction } from '../actions/calculate-pension';
 
 interface InverseDesignResult {
     requiredDailySalary: number;
@@ -24,9 +22,6 @@ interface InverseDesignResult {
     weeks: number;
     months: number;
 }
-
-const engine = new PensionEngine();
-const designer = new InverseDesigner();
 
 export const InverseDesign: React.FC = () => {
     const { scenarioA } = useSimulationStore();
@@ -42,36 +37,18 @@ export const InverseDesign: React.FC = () => {
     const yearsToProject = Math.max(0, targetAge - currentAge);
     const monthsEstimates = yearsToProject * 12;
 
-    const maxLegalPension = useMemo(() => {
-        return engine.maxPossiblePension(baseInput);
-    }, [baseInput]);
-
-    const basePensionData = useMemo(() => {
-        const inercialWeeks = baseInput.weeks + (baseInput.is_ongoing_work !== false ? yearsToProject * 52 : 0);
-        const inercialResult = engine.calculate({
-            ...baseInput,
-            weeks: inercialWeeks,
-            age: targetAge
-        });
-        return inercialResult.net_pension;
-    }, [baseInput, targetAge, yearsToProject]);
+    const [maxLegalPension, setMaxLegalPension] = useState<number>(0);
+    const [basePensionData, setBasePensionData] = useState<number>(0);
 
     const calculateRequiredSalary = useCallback(() => {
-        const invMonths = Math.max(12, yearsToProject * 12);
-        const solve = designer.solveForTarget(baseInput, targetPension, invMonths);
-
-        setResult({
-            requiredDailySalary: solve.requiredSBC,
-            cappedDailySalary: solve.requiredSBC, // Binary search already caps at 25 UMAs
-            monthlyInvestment: solve.totalInvestment / Math.max(1, invMonths),
-            totalInvestment: solve.totalInvestment,
-            isPossible: solve.isViable,
-            maxPension: maxLegalPension,
-            maxPensionGross: maxLegalPension * 1.1, // Approx
-            weeks: baseInput.weeks + Math.floor(yearsToProject * 52),
-            months: invMonths
+        calculateInverseDesignAction(baseInput, targetPension).then((res) => {
+            setMaxLegalPension(res.maxLegalPension);
+            setBasePensionData(res.basePensionData);
+            setResult(res.solve);
+        }).catch((err) => {
+            console.error("Failed to calculate inverse design:", err);
         });
-    }, [baseInput, yearsToProject, targetPension, maxLegalPension]);
+    }, [baseInput, targetPension]);
 
 
     useEffect(() => {

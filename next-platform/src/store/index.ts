@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { PensionEngine, PensionInput, PensionResult } from '../lib/engine/pension-engine'
+import { PensionInput, PensionResult } from '../lib/engine/pension-engine'
 
 interface ScenarioState {
     input: PensionInput;
@@ -29,10 +29,7 @@ interface SimulationStore {
     setCertifiedDossier: (dossier: CertifiedDossier | null) => void;
     setUserProfile: (profile: Partial<UserProfile>) => void;
     updateScenarioA: (input: Partial<PensionInput>) => void;
-    calculate: () => void;
 }
-
-const engine = new PensionEngine();
 
 const initialInput: PensionInput = {
     weeks: 1250,
@@ -70,13 +67,4 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     updateScenarioA: (input) => set((state) => ({
         scenarioA: { ...state.scenarioA, input: { ...state.scenarioA.input, ...input } }
     })),
-
-    calculate: () => {
-        const { scenarioA } = get();
-        const resA = engine.calculate(scenarioA.input);
-
-        set({
-            scenarioA: { ...scenarioA, result: resA },
-        });
-    },
 }));

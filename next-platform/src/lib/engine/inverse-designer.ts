@@ -1,5 +1,6 @@
-import { PensionEngine, PensionInput } from './pension-engine';
-import legalData from '../data/legal-anchors.json';
+import { PensionEngine } from './pension-engine.ts';
+import type { PensionInput } from './pension-engine.ts';
+import legalData from '../data/legal-anchors.json' with { type: 'json' };
 
 export interface InverseResult {
   targetMonthly: number;

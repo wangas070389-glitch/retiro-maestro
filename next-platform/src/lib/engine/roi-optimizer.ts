@@ -1,5 +1,7 @@
-import { PensionEngine, PensionInput } from './pension-engine';
-import legalData from '../data/legal-anchors.json';
+import { PensionEngine } from './pension-engine.ts';
+import type { PensionInput } from './pension-engine.ts';
+import legalData from '../data/legal-anchors.json' with { type: 'json' };
+import { getM40RateForYear } from './m40-calculator.ts';
 
 export interface ExecutiveRecommendation {
     strategyName: string;
@@ -24,7 +26,7 @@ export class ROIOptimizer {
      * Scans multiple investment windows (12-60 months) to find the mathematically 
      * optimal point of entry for Modalidad 40.
      */
-    public optimize(input: PensionInput): ExecutiveRecommendation[] {
+    public optimize(input: PensionInput, originalAge?: number): ExecutiveRecommendation[] {
         const recommendations: ExecutiveRecommendation[] = [];
         
         // 1. Base Scenario (Inercial - $0 Investment)
@@ -38,12 +40,20 @@ export class ROIOptimizer {
         const windows = [12, 24, 36, 48, 60];
         const uma25 = (input.anchor_salary || legalData.uma_2026) * 25;
         
-        // Cost of M40 is roughly 12.256% of SBC in 2026 (projected)
-        const m40_rate = 0.12256; 
-        const monthlyCost = uma25 * m40_rate * 30.416;
+        const currentYear = new Date().getFullYear();
+        const startAge = originalAge ?? (input.age - 5); // fallback if not provided: assume 5 years of investment
+        const retirementYear = currentYear + Math.max(0, input.age - startAge);
 
         for (const months of windows) {
-            const totalInvestment = monthlyCost * months;
+            const yearsOfInvestment = months / 12;
+            let totalInvestment = 0;
+            // Sum the investment cost for each year in the investment window
+            // We assume the investment happens right before retirement
+            for (let y = 0; y < yearsOfInvestment; y++) {
+                const year = retirementYear - yearsOfInvestment + y;
+                const rate = getM40RateForYear(year);
+                totalInvestment += uma25 * rate * 30.416 * 12;
+            }
             
             // Calculate projected pension with this investment window
             // We assume the investment happens right before retirement

@@ -7,13 +7,15 @@ import { z } from 'zod';
 const RegisterSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
     email: z.string().email("Invalid email address"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
+    password: z.string().min(8, "Password must be at least 8 characters"),
     role: z.enum(['USER', 'ADVISOR']).default('USER'),
     advisorCode: z.string().optional(),
     residencyState: z.string().optional()
 });
 
 export async function registerUserAction(formData: FormData) {
+    // TODO: SEC-021 - Implement Upstream Rate Limiting (e.g. Redis sliding window or Edge Middleware)
+    // to mitigate brute-force credentials stuffing on the auth entrypoints.
     try {
         const rawData = {
             name: formData.get('name'),

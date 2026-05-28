@@ -1,3 +1,5 @@
+import { VigenciaGuard } from './vigencia-guard.ts';
+
 export interface PeriodoGraciaStatus {
     isVigente: boolean;
     semanasGracia: number;
@@ -27,35 +29,19 @@ export class Art150LegalGuard {
             };
         }
 
-       // 1. Calcular la cuarta parte de las semanas (Período de Conservación)
-       const semanasGracia = Math.floor(weeks / 4);
+        const res = VigenciaGuard.checkRights(weeks, lastTerminationDate);
+        const diasRestantes = res.expirationDate 
+            ? Math.max(0, Math.floor((new Date(res.expirationDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+            : 0;
 
-       // 2. Extraer la fecha de expiración sumando semanas a la fecha de baja
-       const fechaBaja = new Date(lastTerminationDate);
-       const fechaVencimiento = new Date(fechaBaja.getTime() + (semanasGracia * 7 * 24 * 60 * 60 * 1000));
-       const today = new Date();
-
-       // 3. Evaluar vigencia
-       const msRestantes = fechaVencimiento.getTime() - today.getTime();
-       const isVigente = msRestantes >= 0;
-       const diasRestantes = Math.max(0, Math.floor(msRestantes / (1000 * 60 * 60 * 24)));
-
-       if (isVigente) {
-            return {
-                isVigente: true,
-                semanasGracia,
-                fechaVencimientoGracia: fechaVencimiento,
-                diasRestantesGracia: diasRestantes,
-                mensaje: `Derechos Vigentes. Caducidad en ${diasRestantes} días (Ref: Ley 73 Art. 150).`
-            }
-       } else {
-            return {
-                isVigente: false,
-                semanasGracia,
-                fechaVencimientoGracia: fechaVencimiento,
-                diasRestantesGracia: 0,
-                mensaje: "Riesgo Crítico: Derechos Vencidos. El cliente requiere reactivación laboral inmediata de 52 semanas."
-            }
-       }
+        return {
+            isVigente: res.hasRights,
+            semanasGracia: res.conservationWeeks,
+            fechaVencimientoGracia: res.expirationDate ? new Date(res.expirationDate) : null,
+            diasRestantesGracia: diasRestantes,
+            mensaje: res.hasRights
+                ? `Derechos Vigentes. Caducidad en ${diasRestantes} días (Ref: Ley 73 Art. 150).`
+                : "Riesgo Crítico: Derechos Vencidos. El cliente requiere reactivación laboral inmediata de 52 semanas."
+        };
     }
 }

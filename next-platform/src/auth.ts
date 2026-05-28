@@ -52,7 +52,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     callbacks: {
         ...authConfig.callbacks,
         async session({ session, token }) {
-            console.log("[AUTH DEBUG] Session Callback - Token:", JSON.stringify(token));
+
             if (token.sub && session.user) {
                 session.user.id = token.sub;
                 session.user.role = token.role as string;
@@ -70,11 +70,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
                 if (token.avgSalary) (session.user as any).avgSalary = token.avgSalary as number;
                 if (token.lastBajaDate) (session.user as any).lastBajaDate = token.lastBajaDate as string | Date;
             }
-            console.log("[AUTH DEBUG] Session Callback - Resulting Session:", JSON.stringify(session));
+
             return session;
         },
         async jwt({ token, user, trigger, session }) {
-            console.log("[AUTH DEBUG] JWT Callback - Trigger:", trigger, "User:", user ? user.email : "none");
+
             if (user) {
                 token.role = user.role;
                 token.tier = user.tier;

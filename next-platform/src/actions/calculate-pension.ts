@@ -9,6 +9,10 @@ import { assertTrialAccess } from '../lib/trial-guard';
 import { ROIOptimizer, ExecutiveRecommendation } from '../lib/engine/roi-optimizer';
 import { getPlan, Role, Tier } from '../lib/config/pricing';
 import { checkUserAccess } from '../lib/auth/access-control';
+import { OracleService } from '../lib/engine/oracle/oracle-service';
+import { InverseDesigner } from '../lib/engine/inverse-designer';
+import { TaxEngine } from '../lib/engine/fiscal/tax-engine';
+import { getM40RateForYear } from '../lib/engine/m40-calculator';
 
 const PensionSchema = z.object({
     weeks: z.number().min(0).max(3000, "Weeks out of bounds"),
@@ -86,10 +90,12 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
             is_ongoing_work: validatedFields.data.is_ongoing_work
         });
 
+        const anchors = await OracleService.fetchLatestAnchors();
         const calcInput: PensionInput = {
             ...validatedFields.data,
             age: projection.age,
-            weeks: projection.weeks
+            weeks: projection.weeks,
+            anchor_salary: validatedFields.data.anchor_salary || anchors.uma
         };
 
         const engine = new PensionEngine();
@@ -109,7 +115,7 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
         let recommendations: ExecutiveRecommendation[] | undefined = undefined;
         if (checkUserAccess(userRole, userTier, 'roiOptimizer')) {
             const optimizer = new ROIOptimizer();
-            recommendations = optimizer.optimize(calcInput as PensionInput);
+            recommendations = optimizer.optimize(calcInput as PensionInput, validatedFields.data.age);
         }
 
         return { success: true, data: result, vigenciaAlert, recommendations };
@@ -118,4 +124,277 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
         console.error("Calculation Error:", error);
         return { success: false, error: "Server Error during calculation." };
     }
+}
+
+export async function calculateProjectionAction(
+    input: PensionInput,
+    strategyMode: 'modalidad40' | 'inercial',
+    monthlyInvestment: number,
+    targetDailySalary?: number,
+    targetDailyHigh?: number,
+    splitYear?: number
+) {
+    const session = await auth();
+    if (!session) throw new Error("Unauthorized");
+
+    const anchors = await OracleService.fetchLatestAnchors();
+    const inputWithAnchor = {
+        ...input,
+        anchor_salary: input.anchor_salary || anchors.uma
+    };
+
+    const engine = new PensionEngine();
+    const projection = engine.calculateProjection(
+        inputWithAnchor,
+        null,
+        strategyMode,
+        monthlyInvestment,
+        targetDailySalary,
+        targetDailyHigh,
+        splitYear
+    );
+
+    const basePensionData = (() => {
+        const yearsLeft = Math.max(0, (inputWithAnchor.retirement_age || 65) - inputWithAnchor.age);
+        const inercialWeeks = inputWithAnchor.weeks + (inputWithAnchor.is_ongoing_work !== false ? yearsLeft * 52 : 0);
+        const inercialResult = engine.calculate({
+            ...inputWithAnchor,
+            weeks: inercialWeeks,
+            age: inputWithAnchor.retirement_age || 65
+        });
+        return TaxEngine.calculateISR(inercialResult.with_decree_111).netPension;
+    })();
+
+    const yearsLeft = Math.max(0, (inputWithAnchor.retirement_age || 65) - inputWithAnchor.age);
+    const baselineProjection = engine.calculateProjection(
+        inputWithAnchor,
+        yearsLeft,
+        'inercial',
+        0
+    );
+
+    return {
+        projection,
+        basePensionData,
+        baselineProjection
+    };
+}
+
+export async function calculateStrategiesAction(input: PensionInput) {
+    const session = await auth();
+    if (!session) throw new Error("Unauthorized");
+
+    const anchors = await OracleService.fetchLatestAnchors();
+    const inputWithAnchor = {
+        ...input,
+        anchor_salary: input.anchor_salary || anchors.uma
+    };
+
+    const engine = new PensionEngine();
+    const yearsLeft = Math.max(0, (inputWithAnchor.retirement_age || 65) - inputWithAnchor.age);
+    const monthsLeft = yearsLeft * 12;
+
+    // Baseline (Inercial)
+    const inercialWeeks = inputWithAnchor.weeks + (inputWithAnchor.is_ongoing_work !== false ? yearsLeft * 52 : 0);
+    const inercialResult = engine.calculate({
+        ...inputWithAnchor,
+        weeks: inercialWeeks,
+        age: inputWithAnchor.retirement_age || 65
+    });
+    const baseNet = TaxEngine.calculateISR(inercialResult.with_decree_111).netPension;
+
+    if (yearsLeft === 0) return { baseNet, strategies: [] };
+
+    const UMA_MONTHLY = anchors.uma * 30.416;
+    const TOP_SALARY = UMA_MONTHLY * 25;
+    const LOW_SALARY = Math.max(UMA_MONTHLY * 1.5, inputWithAnchor.salary_prom * 30.416);
+
+    let bestEfficiency = 0;
+    let optimalStrategyData: any = null;
+    let absoluteMaxPension = 0;
+    let absoluteMaxStrategyData: any = null;
+    const viableStrategies: any[] = [];
+
+    const calculateInvestment = (monthlySalary: number, years: number, startYearOffset: number = 0) => {
+        let total = 0;
+        for (let i = 0; i < years; i++) {
+            const currentYear = new Date().getFullYear();
+            const year = currentYear + Math.max(0, (inputWithAnchor.retirement_age || 65) - inputWithAnchor.age) - years + i + startYearOffset;
+            const rate = getM40RateForYear(year);
+            const inflationFactor = Math.pow(1.04, i + startYearOffset);
+            const adjustedSalary = monthlySalary * inflationFactor;
+            const yearlyCost = adjustedSalary * rate * 12;
+            total += yearlyCost;
+        }
+        return total;
+    };
+
+    for (let targetYears = 1; targetYears <= yearsLeft; targetYears++) {
+        const lowYears = Math.max(0, yearsLeft - targetYears);
+        const highYears = targetYears;
+
+        const highWeeks = Math.min(250, highYears * 52);
+        const remainingRequiredWeeks = 250 - highWeeks;
+        const lowWeeks = Math.min(remainingRequiredWeeks, lowYears * 52);
+        const historicalWeeks = Math.max(0, remainingRequiredWeeks - lowWeeks);
+
+        const topDaily = TOP_SALARY / 30.416;
+        const lowDaily = LOW_SALARY / 30.416;
+
+        const projectedBlendedSalary = ((topDaily * highWeeks) + (lowDaily * lowWeeks) + (inputWithAnchor.salary_prom * historicalWeeks)) / 250;
+        const projectedWeeks = inputWithAnchor.weeks + (yearsLeft * 52);
+
+        const result = engine.calculate({
+            ...inputWithAnchor,
+            weeks: projectedWeeks,
+            salary_prom: projectedBlendedSalary,
+            age: inputWithAnchor.retirement_age || 65
+        });
+
+        const netResult = TaxEngine.calculateISR(result.with_decree_111).netPension;
+
+        const invLowTotal = calculateInvestment(LOW_SALARY, lowYears, 0);
+        const invHighTotal = calculateInvestment(TOP_SALARY, highYears, lowYears);
+        const totalInv = invLowTotal + invHighTotal;
+
+        const deltaPension = netResult - baseNet;
+        const efficiencyRatio = totalInv > 0 ? deltaPension / totalInv : 0;
+        const roiMonths = deltaPension > 0 ? (totalInv / deltaPension) : 999;
+
+        const iterationData = {
+            highYears,
+            lowYears,
+            netPension: netResult,
+            totalInvestment: totalInv,
+            avgMonthlyInvestment: monthsLeft > 0 ? totalInv / monthsLeft : 0,
+            targetSalary: projectedBlendedSalary,
+            rawTargetDaily: topDaily,
+            delta: deltaPension,
+            roiMonths: roiMonths,
+        };
+
+        if (netResult > absoluteMaxPension) {
+            absoluteMaxPension = netResult;
+            absoluteMaxStrategyData = iterationData;
+        }
+
+        const penalizedEfficiency = roiMonths > 60 ? efficiencyRatio * (60 / roiMonths) : efficiencyRatio;
+
+        if (penalizedEfficiency > bestEfficiency) {
+            bestEfficiency = penalizedEfficiency;
+            optimalStrategyData = iterationData;
+        }
+
+        if (deltaPension > 0) {
+            viableStrategies.push(iterationData);
+        }
+    }
+
+    let conservativeStrategyData: any = null;
+    if (viableStrategies.length > 0) {
+        viableStrategies.sort((a, b) => a.totalInvestment - b.totalInvestment);
+        conservativeStrategyData = viableStrategies[0];
+    }
+
+    const buildCard = (id: string, name: string, description: string, data: any, color: 'indigo' | 'amber' | 'emerald') => ({
+        id,
+        name,
+        description,
+        ...data,
+        color,
+        percentageIncrease: ((data.netPension - baseNet) / baseNet) * 100,
+        lifetimeImpact: data.delta * 12 * 20
+    });
+
+    const cards = [];
+    const isOptEqMax = optimalStrategyData?.highYears === absoluteMaxStrategyData?.highYears;
+    const isConsEqOpt = conservativeStrategyData?.highYears === optimalStrategyData?.highYears;
+
+    if (conservativeStrategyData && (!isConsEqOpt || viableStrategies.length === 1)) {
+        const hasRampa = conservativeStrategyData.lowYears > 0;
+        cards.push(buildCard('conservador',
+            `Ruta Conservadora`,
+            `Menor barrera de entrada. Inversión mínima requerida (${hasRampa ? `${conservativeStrategyData.lowYears}+${conservativeStrategyData.highYears}` : `${conservativeStrategyData.highYears} años`}).`,
+            conservativeStrategyData, 'emerald'
+        ));
+    }
+
+    if (optimalStrategyData) {
+        const hasRampa = optimalStrategyData.lowYears > 0;
+        cards.push(buildCard('optimo',
+            `Estrategia Recomendada`,
+            `Mayor equilibrio costo-beneficio. Modelo matemático ${hasRampa ? `${optimalStrategyData.lowYears}+${optimalStrategyData.highYears}` : `${optimalStrategyData.highYears} años`}.`,
+            optimalStrategyData, 'amber'
+        ));
+    }
+
+    if (absoluteMaxStrategyData && !isOptEqMax) {
+        cards.push(buildCard('maximo', `Techo Legal Máximo (${absoluteMaxStrategyData.highYears} Años)`,
+            `Estrategia de cotización al tope de 25 UMAs para alcanzar el máximo beneficio de ley.`,
+            absoluteMaxStrategyData, 'indigo'
+        ));
+    }
+
+    return {
+        baseNet,
+        strategies: cards
+    };
+}
+
+export async function calculateInverseDesignAction(input: PensionInput, targetPension: number) {
+    const session = await auth();
+    if (!session) throw new Error("Unauthorized");
+
+    const anchors = await OracleService.fetchLatestAnchors();
+    const inputWithAnchor = {
+        ...input,
+        anchor_salary: input.anchor_salary || anchors.uma
+    };
+
+    const engine = new PensionEngine();
+    const designer = new InverseDesigner();
+
+    const maxLegalPension = engine.maxPossiblePension(inputWithAnchor);
+    const yearsToProject = Math.max(0, (inputWithAnchor.retirement_age || 65) - inputWithAnchor.age);
+    const inercialWeeks = inputWithAnchor.weeks + (inputWithAnchor.is_ongoing_work !== false ? yearsToProject * 52 : 0);
+
+    const inercialResult = engine.calculate({
+        ...inputWithAnchor,
+        weeks: inercialWeeks,
+        age: inputWithAnchor.retirement_age || 65
+    });
+    const basePensionData = inercialResult.net_pension;
+
+    const invMonths = Math.max(12, yearsToProject * 12);
+    const solve = designer.solveForTarget(inputWithAnchor, targetPension, invMonths);
+
+    return {
+        maxLegalPension,
+        basePensionData,
+        solve: {
+            requiredDailySalary: solve.requiredSBC,
+            cappedDailySalary: solve.requiredSBC,
+            monthlyInvestment: solve.totalInvestment / Math.max(1, invMonths),
+            totalInvestment: solve.totalInvestment,
+            isPossible: solve.isViable,
+            maxPension: maxLegalPension,
+            maxPensionGross: maxLegalPension * 1.1,
+            weeks: inputWithAnchor.weeks + Math.floor(yearsToProject * 52),
+            months: invMonths
+        }
+    };
+}
+
+export async function getMaxPossiblePensionAction(input: PensionInput) {
+    const session = await auth();
+    if (!session) throw new Error("Unauthorized");
+
+    const anchors = await OracleService.fetchLatestAnchors();
+    const inputWithAnchor = {
+        ...input,
+        anchor_salary: input.anchor_salary || anchors.uma
+    };
+
+    const engine = new PensionEngine();
+    return engine.maxPossiblePension(inputWithAnchor);
 }

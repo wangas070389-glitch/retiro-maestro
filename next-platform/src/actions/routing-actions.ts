@@ -106,58 +106,55 @@ export async function claimLeadAction(leadId: string) {
             throw new Error("Only Advisors or Admins can claim leads.");
         }
 
-        // Lock Record
-        const lead = await db.user.findUnique({
-            where: { id: leadId }
-        }) as any;
+        return await db.$transaction(async (tx) => {
+            // Lock Record
+            const lead = await tx.user.findUnique({
+                where: { id: leadId }
+            }) as any;
 
-        if (!lead || lead.leadStatus === 'CLAIMED' || lead.advisorId) {
-            return { success: false, error: "El lead ya no está disponible." };
-        }
-
-        const advisor = await db.user.findUnique({
-            where: { id: session.user.id }
-        }) as any;
-
-        // Paywall Guard (Deep Blue Phase - ADR-036)
-        const allowedTiers = ['STARTER', 'GROWTH', 'PRO', 'FREE']; 
-        // Note: Currently allowed for FREE during Beta? User said "GOLD only" previously.
-        // Actually the SPEC says: "B2B (Advisor): FREE -> STARTER -> GROWTH -> PRO".
-        // And the user wants to eradicate GOLD.
-        
-        const professionalTiers = ['STARTER', 'GROWTH', 'PRO'];
-        if (!professionalTiers.includes(advisor.tier)) {
-            return { success: false, error: "Tu plan actual no permite reclamar leads. Actualiza a un plan profesional." };
-        }
-
-        // Enforce Geographic Constraints
-        if (lead.leadStatus === 'PENDING_LOCAL') {
-            if (advisor.operationState !== lead.residencyState) {
-                return { success: false, error: "SLA Activo: El lead está restringido a Talento Local." };
+            if (!lead || lead.leadStatus === 'CLAIMED' || lead.advisorId) {
+                return { success: false, error: "El lead ya no está disponible." };
             }
-        }
 
-        if (lead.leadStatus === 'PENDING_NATIONAL') {
-            if (!advisor.remoteReady) {
-                return { success: false, error: "El lead es remoto. Activa tu disposición Nacional en Perfil." };
+            const advisor = await tx.user.findUnique({
+                where: { id: session.user.id }
+            }) as any;
+
+            // Paywall Guard (Deep Blue Phase - ADR-036)
+            const professionalTiers = ['STARTER', 'GROWTH', 'PRO'];
+            if (!professionalTiers.includes(advisor.tier)) {
+                return { success: false, error: "Tu plan actual no permite reclamar leads. Actualiza a un plan profesional." };
             }
-        }
 
-        // Execute Bind (First-Come, First-Served)
-        await db.user.update({
-            where: { id: lead.id },
-            data: {
-                leadStatus: "CLAIMED",
-                advisorId: advisor.id,
-                claimedById: advisor.id,
-                slaExpiresAt: null
-            } as any
+            // Enforce Geographic Constraints
+            if (lead.leadStatus === 'PENDING_LOCAL') {
+                if (advisor.operationState !== lead.residencyState) {
+                    return { success: false, error: "SLA Activo: El lead está restringido a Talento Local." };
+                }
+            }
+
+            if (lead.leadStatus === 'PENDING_NATIONAL') {
+                if (!advisor.remoteReady) {
+                    return { success: false, error: "El lead es remoto. Activa tu disposición Nacional en Perfil." };
+                }
+            }
+
+            // Execute Bind (First-Come, First-Served)
+            await tx.user.update({
+                where: { id: lead.id },
+                data: {
+                    leadStatus: "CLAIMED",
+                    advisorId: advisor.id,
+                    claimedById: advisor.id,
+                    slaExpiresAt: null
+                } as any
+            });
+
+            console.warn(`[ROUTING ENGINE] Lead ${lead.id} CLAIMED by Advisor ${advisor.id}`);
+            return { success: true };
         });
-
-        console.warn(`[ROUTING ENGINE] Lead ${lead.id} CLAIMED by Advisor ${advisor.id}`);
-        return { success: true };
     } catch (error) {
-        return { success: false, error: "Error en concurrencia (Transaction Deadlock)." };
+        return { success: false, error: error instanceof Error ? error.message : "Error en concurrencia (Transaction Deadlock)." };
     }
 }
 
