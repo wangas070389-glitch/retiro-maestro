@@ -22,6 +22,7 @@ Visual and logical mapping of component interactions and causal flows within the
 | **N2-019** | [N2-019.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/n2-maps/N2-019.md) | **ACTIVE** | Ingestion Verification Interaction Flow. |
 | **N2-020** | [N2-020.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/n2-maps/N2-020.md) | **ACTIVE** | Flujo de Ingestión Forense y Certificación Criptológica. |
 | **N2-021** | [N2-021.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/n2-maps/N2-021.md) | **ACTIVE** | Intelligent Payment Calendar Interaction Map. |
+| **N2-025** | [N2-025.md](file:///c:/Users/wanga/OneDrive/Escritorio/Antigravity-projects/retiro_maestro/docs/docs/n2-maps/N2-025.md) | **ACTIVE** | Compact High-Density Dashboard Data Flow Map. |
 
 ## Metadata
 - **Domain**: Interaction Design

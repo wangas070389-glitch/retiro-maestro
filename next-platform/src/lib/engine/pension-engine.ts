@@ -89,7 +89,9 @@ export class PensionEngine {
     const total_annual_base = daily_total_base * 365;
 
     // 5. Age Factor
-    const age_key = Math.min(65, Math.max(60, age)).toString() as keyof typeof legalData.age_factors;
+    const fractionalPart = age - Math.floor(age);
+    const calculatedRetirementAge = fractionalPart >= 0.5 ? Math.ceil(age) : Math.floor(age);
+    const age_key = Math.min(65, Math.max(60, calculatedRetirementAge)).toString() as keyof typeof legalData.age_factors;
     const age_factor = legalData.age_factors[age_key] || 0.75;
     const adjusted_by_age = total_annual_base * age_factor;
 

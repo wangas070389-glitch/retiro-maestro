@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import { 
     ShieldCheck, 
     ShieldAlert, 
@@ -54,11 +54,7 @@ export default function AdminUsersPage() {
     const [selectedUser, setSelectedUser] = useState<AdminUser | null>(null);
     const [newPassword, setNewPassword] = useState('');
 
-    useEffect(() => {
-        loadUsers();
-    }, []);
-
-    async function loadUsers() {
+    const loadUsers = useCallback(async () => {
         setLoading(true);
         const res = await getAllUsersAction();
         if (res.success && res.users) {
@@ -67,7 +63,11 @@ export default function AdminUsersPage() {
             showToast("Error loading users: " + res.error, "error");
         }
         setLoading(false);
-    }
+    }, [showToast]);
+
+    useEffect(() => {
+        loadUsers();
+    }, [loadUsers]);
 
     // Derived Stats
     const stats = useMemo(() => ({

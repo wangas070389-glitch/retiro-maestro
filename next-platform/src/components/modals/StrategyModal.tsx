@@ -6,14 +6,22 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useSession } from 'next-auth/react';
 import { PensionInput } from '../../lib/engine/pension-engine';
 import { TaxEngine } from '../../lib/engine/fiscal/tax-engine';
-import { PDFDownloadLink } from '@react-pdf/renderer';
 import { ResumenTab } from './tabs/ResumenTab';
 import { ProyeccionTab } from './tabs/ProyeccionTab';
 import { DesgloseTab } from './tabs/DesgloseTab';
-import { RetirementReport } from '../reports/RetirementReport';
-import { ComprehensiveReport } from '../reports/ComprehensiveReport';
 import { DossierBuilder, ForensicBundle } from '../../lib/engine/audit/dossier-builder';
 import { calculateProjectionAction } from '../../actions/calculate-pension';
+import dynamic from 'next/dynamic';
+
+const StrategyModalBriefPDFButton = dynamic(
+    () => import('@/components/reports/PDFDownloadButtons').then(mod => mod.StrategyModalBriefPDFButton),
+    { ssr: false }
+);
+
+const StrategyModalDetailedPDFButton = dynamic(
+    () => import('@/components/reports/PDFDownloadButtons').then(mod => mod.StrategyModalDetailedPDFButton),
+    { ssr: false }
+);
 
 interface StrategyModalProps {
     isOpen: boolean;
@@ -74,6 +82,11 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
     const [basePensionData, setBasePensionData] = useState<number>(0);
     const [baselineProjection, setBaselineProjection] = useState<any[]>([]);
     const [loading, setLoading] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
 
     useEffect(() => {
         if (!isOpen) return;
@@ -241,9 +254,25 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
                             </div>
 
                             <div className="flex gap-4 w-full sm:w-auto">
-                                <PDFDownloadLink
-                                    document={
-                                        <RetirementReport
+                                {!mounted ? (
+                                    <>
+                                        <button
+                                            disabled
+                                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-slate-400 font-bold rounded-xl border-2 border-slate-200 transition-colors text-sm"
+                                        >
+                                            <FileText size={18} />
+                                            Cargando...
+                                        </button>
+                                        <button
+                                            disabled
+                                            className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-50 text-indigo-400 font-bold rounded-xl transition-colors text-sm border-2 border-indigo-50"
+                                        >
+                                            Cargando PDF...
+                                        </button>
+                                    </>
+                                ) : (
+                                    <>
+                                        <StrategyModalBriefPDFButton
                                             clientName={input.name || "Sovereign User"}
                                             input={input}
                                             strategyName={strategyName}
@@ -263,21 +292,8 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
                                             certifiedDossier={null}
                                             agencyProfile={session?.user}
                                         />
-                                    }
-                                    fileName={`Reporte_${strategyName.replace(/\s+/g, '_')}.pdf`}
-                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-3.5 bg-white text-slate-700 font-bold rounded-xl border-2 border-slate-200 hover:bg-slate-50 hover:border-slate-300 transition-colors text-sm"
-                                >
-                                    {({ loading }) => (
-                                        <>
-                                            <FileText size={18} />
-                                            {loading ? 'Generando...' : 'Resumen Breve'}
-                                        </>
-                                    )}
-                                </PDFDownloadLink>
 
-                                <PDFDownloadLink
-                                    document={
-                                        <ComprehensiveReport
+                                        <StrategyModalDetailedPDFButton
                                             clientName={input.name || "Sovereign User"}
                                             input={input}
                                             strategyName={strategyName}
@@ -299,17 +315,10 @@ export const StrategyModal: React.FC<StrategyModalProps> = ({
                                                 estudio: 3000,
                                                 gestionMensual: strategyMode === 'modalidad40' ? 1000 : undefined
                                             }}
+                                            strategyMode={strategyMode}
                                         />
-                                    }
-                                    fileName={`Dossier_Completo_${strategyName.replace(/\s+/g, '_')}.pdf`}
-                                    className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-8 py-3.5 bg-indigo-600 text-white font-bold rounded-xl hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-600/20 text-sm border-2 border-indigo-600 hover:border-indigo-700"
-                                >
-                                    {({ loading }) => (
-                                        <>
-                                            {loading ? 'Generando PDF...' : 'Desbloquear Plan Detallado'}
-                                        </>
-                                    )}
-                                </PDFDownloadLink>
+                                    </>
+                                )}
                             </div>
                         </div>
                     </motion.div>

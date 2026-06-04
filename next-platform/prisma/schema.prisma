@@ -55,10 +55,15 @@ model User {
   wageHistories    WageHistory[]
 
   // Actuarial Metadata (Sovereign CRM Sync)
+  nss             String?
+  birthDate       DateTime?
+  isWorking       Boolean   @default(false)
   age             Int?
   currentWeeks    Int?
   avgSalary       Float?
   lastBajaDate    DateTime?
+  activeStrategy  String?
+  m40PaymentsState String?
   
   // CRM Closing Machine (v3.0.0-terminal)
   currentStage    String    @default("PROSPECT") // PROSPECT, ANALYZING, PROPOSAL_SENT, CLOSED_WIN, CLOSED_LOSS
@@ -85,10 +90,15 @@ model Client {
   simulations   Simulation[]
   
   // Actuarial Metadata (Sovereign CRM Sync)
+  nss           String?
+  birthDate     DateTime?
+  isWorking     Boolean   @default(false)
   age           Int?
   currentWeeks  Int?
   avgSalary     Float?
   lastBajaDate  DateTime?
+  activeStrategy  String?
+  m40PaymentsState String?
 
   // CRM Closing Machine (v3.0.0-terminal)
   currentStage    String    @default("PROSPECT") // PROSPECT, ANALYZING, PROPOSAL_SENT, CLOSED_WIN, CLOSED_LOSS

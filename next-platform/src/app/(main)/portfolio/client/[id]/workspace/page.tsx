@@ -129,6 +129,9 @@ export default async function WorkstationPage({ params }: { params: { id: string
                             currentWeeks: weeksCount,
                             avgSalary,
                             lastBajaDate: lastTermination,
+                            isWorking: client.isWorking || false,
+                            activeStrategy: client.activeStrategy || null,
+                            m40PaymentsState: client.m40PaymentsState || null,
                             currentStage: client.currentStage || 'PROSPECT',
                             notes: client.notes || '',
                             selectedStrategyId: client.selectedStrategyId

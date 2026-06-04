@@ -69,3 +69,44 @@ test('PensionEngine: solitude allowance when no wife/children', () => {
     assert.strictEqual(result.allowances.wife, 0);
     assert.strictEqual(result.allowances.children, 0);
 });
+
+test('PensionEngine: Ley 73 surplus semester rule rounding', () => {
+    const engine = new PensionEngine();
+    
+    // Test case 1: Age 60.4 (fraction < 0.5) should round down to 60 (75% age factor)
+    const resultDown = engine.calculate({
+        weeks: 1000,
+        salary_prom: 1000,
+        age: 60.4,
+        has_wife: true,
+        children_count: 0,
+        dependent_parents_count: 0,
+        anchor_salary: 100
+    });
+    assert.strictEqual(resultDown.age_penalty, 75);
+
+    // Test case 2: Age 60.5 (fraction == 0.5) should round up to 61 (80% age factor)
+    const resultUpHalf = engine.calculate({
+        weeks: 1000,
+        salary_prom: 1000,
+        age: 60.5,
+        has_wife: true,
+        children_count: 0,
+        dependent_parents_count: 0,
+        anchor_salary: 100
+    });
+    assert.strictEqual(resultUpHalf.age_penalty, 80);
+
+    // Test case 3: Age 60.6 (fraction > 0.5) should round up to 61 (80% age factor)
+    const resultUpMore = engine.calculate({
+        weeks: 1000,
+        salary_prom: 1000,
+        age: 60.6,
+        has_wife: true,
+        children_count: 0,
+        dependent_parents_count: 0,
+        anchor_salary: 100
+    });
+    assert.strictEqual(resultUpMore.age_penalty, 80);
+});
+

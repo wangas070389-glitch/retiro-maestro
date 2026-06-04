@@ -4,14 +4,18 @@ import { useState } from 'react';
 import { CheckCircle2, TrendingUp, AlertTriangle, ArrowRight, ChevronDown, DollarSign, Clock, PiggyBank, X } from 'lucide-react';
 import { ExecutiveRecommendation } from '@/lib/engine/roi-optimizer';
 import { useSession } from 'next-auth/react';
+import { useToast } from '@/components/ui/toast-context';
+import { selectStrategyAction } from '@/actions/tracking-actions';
 
 interface Props {
     recommendations: ExecutiveRecommendation[];
     onSelect?: (rec: ExecutiveRecommendation) => void;
+    clientId?: string | null;
 }
 
-export function ExecutiveRecommendationComponent({ recommendations, onSelect }: Props) {
+export function ExecutiveRecommendationComponent({ recommendations, onSelect, clientId }: Props) {
     const { data: session } = useSession();
+    const { showToast } = useToast();
     const isUser = session?.user?.role === 'USER';
     const [selectedIndex, setSelectedIndex] = useState<number | null>(() => {
         // Default to the optimal strategy
@@ -220,12 +224,41 @@ export function ExecutiveRecommendationComponent({ recommendations, onSelect }: 
 
                     {/* Contextual explanation for citizens */}
                     {isUser && (
-                        <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl">
-                            <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed">
-                                <strong>¿Qué significa esto?</strong> Si inviertes ${(selected.totalInvestment / selected.investmentMonths).toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN al mes durante {(selected.investmentMonths / 12).toFixed(0)} año(s), 
+                        <div className="mt-6 p-4 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800 rounded-2xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                            <p className="text-sm text-amber-800 dark:text-amber-300 leading-relaxed flex-1">
+                                <strong>¿Qué significa esto?</strong> Si inviertes ${(selected.totalInvestment / selected.investmentMonths).toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN al mes durante {(selected.investmentMonths / 12).toFixed(1)} año(s), 
                                 tu pensión mensual subiría de lo que recibirías sin cambios a <strong>${selected.monthlyPension.toLocaleString('es-MX', { maximumFractionDigits: 0 })} MXN al mes</strong>. 
                                 Recuperarías toda tu inversión en aproximadamente <strong>{selected.paybackMonths.toFixed(0)} meses</strong> de cobrar tu pensión.
                             </p>
+                            <button
+                                onClick={async () => {
+                                    const currentYear = new Date().getFullYear();
+                                    const currentMonth = new Date().getMonth() + 1;
+                                    // Daily salary: target topado or estimate from monthly average
+                                    // Top UMA 2026 daily salary is approx 2941 MXN.
+                                    const dailySalary = selected.totalInvestment / (selected.investmentMonths * 30.416 * 0.14438);
+                                    
+                                    const res = await selectStrategyAction(
+                                        selected.strategyName,
+                                        dailySalary,
+                                        selected.investmentMonths,
+                                        currentYear,
+                                        currentMonth,
+                                        clientId || undefined
+                                    );
+                                    if (res.success) {
+                                        showToast(`¡Estrategia "${selected.strategyName}" activada con éxito!`, "success");
+                                        setTimeout(() => {
+                                            window.location.reload();
+                                        }, 1500);
+                                    } else {
+                                        showToast("Error al activar estrategia: " + res.error, "error");
+                                    }
+                                }}
+                                className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-5 py-3 rounded-xl shadow-md transition-all text-xs shrink-0 whitespace-nowrap uppercase tracking-wider"
+                            >
+                                Activar esta Estrategia
+                            </button>
                         </div>
                     )}
                 </div>

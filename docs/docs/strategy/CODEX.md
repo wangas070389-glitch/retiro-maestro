@@ -33,6 +33,7 @@ Strategic roadmap and mission-critical objectives defining the phases of Retiro 
 | **STRAT-026** | [STRAT-026.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/strategy/STRAT-026.md) | **PROPOSED** | Inteligencia de Optimización Estratégica. |
 | **STRAT-027** | [STRAT-027.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/strategy/STRAT-027.md) | **ACTIVE** | Escalabilidad de Administración y Sobrescritura de Oráculo. |
 | **STRAT-028** | [STRAT-028.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/strategy/STRAT-028.md) | **ACTIVE** | Generación Autónoma de Reportes de Entrega. |
+| **STRAT-035** | [STRAT-035.md](file:///c:/Users/wanga/OneDrive/Escritorio/Antigravity-projects/retiro_maestro/docs/docs/strategy/STRAT-035.md) | **ACTIVE** | High Density Viewport Optimization and Advisor CRM Product Strategy. |
 
 ## Metadata
 - **Domain**: Project Roadmap

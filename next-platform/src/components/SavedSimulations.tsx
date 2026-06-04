@@ -1,29 +1,35 @@
-﻿'use client';
+'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { getSimulationsAction, deleteSimulationAction } from '@/actions/simulation-actions';
 import { History, FileText, ChevronRight, Trash2, Calendar, DollarSign } from 'lucide-react';
 import { useSimulationStore } from '@/store';
 import { useToast } from './ui/toast-context';
 
-export function SavedSimulations({ clientId }: { clientId?: string | null }) {
+export function SavedSimulations({ 
+    clientId,
+    onSelect
+}: { 
+    clientId?: string | null;
+    onSelect?: (sim: any) => void;
+}) {
     const [simulations, setSimulations] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const { updateScenarioA } = useSimulationStore();
     const { showToast } = useToast();
 
-    async function loadSimulations() {
+    const loadSimulations = useCallback(async () => {
         setLoading(true);
         const res = await getSimulationsAction(clientId);
         if (res.success && res.simulations) {
             setSimulations(res.simulations);
         }
         setLoading(false);
-    }
+    }, [clientId]);
 
     useEffect(() => {
         loadSimulations();
-    }, []);
+    }, [loadSimulations]);
 
     const handleDelete = async (e: React.MouseEvent, id: string) => {
         e.stopPropagation();
@@ -48,22 +54,22 @@ export function SavedSimulations({ clientId }: { clientId?: string | null }) {
     if (simulations.length === 0) return null;
 
     return (
-        <div className="space-y-6">
-            <div className="flex items-center gap-2 text-slate-600 font-bold text-xs tracking-wider border-b border-slate-100 pb-2">
-                <History size={16} className="text-indigo-500" />
+        <div className="space-y-3">
+            <div className="flex items-center gap-2 text-slate-600 font-bold text-xs tracking-wider border-b border-slate-100 pb-1.5">
+                <History size={14} className="text-indigo-500" />
                 <span>Mis Estudios</span>
-                <span className="ml-auto text-slate-400 font-normal normal-case">{simulations.length} registros</span>
+                <span className="ml-auto text-slate-400 font-normal normal-case text-[10px]">{simulations.length} registros</span>
             </div>
 
-            <div className="overflow-hidden bg-white rounded-xl border border-slate-200 shadow-sm">
+            <div className="overflow-y-auto max-h-[160px] bg-white rounded-xl border border-slate-200 shadow-sm relative">
                 <table className="w-full text-left border-collapse">
-                    <thead>
-                        <tr className="bg-slate-50 border-b border-slate-200">
-                            <th className="px-6 py-3 text-xs font-bold text-slate-500">Estrategia / Nombre</th>
-                            <th className="px-6 py-3 text-xs font-bold text-slate-500">Semanas</th>
-                            <th className="px-6 py-3 text-xs font-bold text-slate-500">Pensión Estimada</th>
-                            <th className="px-6 py-3 text-xs font-bold text-slate-500">Fecha</th>
-                            <th className="px-6 py-3 text-xs font-bold text-slate-500 text-right opacity-0">Acciones</th>
+                    <thead className="sticky top-0 bg-slate-50 z-10">
+                        <tr className="border-b border-slate-200 shadow-sm">
+                            <th className="px-4 py-2 text-[10px] font-bold text-slate-500 uppercase">Nombre</th>
+                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Semanas</th>
+                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Pensión</th>
+                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase">Fecha</th>
+                            <th className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase text-right opacity-0">Acciones</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-100">
@@ -71,43 +77,48 @@ export function SavedSimulations({ clientId }: { clientId?: string | null }) {
                             <tr
                                 key={sim.id}
                                 className="hover:bg-indigo-50/30 transition-colors cursor-pointer group"
-                                onClick={() => updateScenarioA(sim.input)}
+                                onClick={() => {
+                                    updateScenarioA(sim.input);
+                                    if (onSelect) {
+                                        onSelect(sim);
+                                    }
+                                }}
                             >
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-3">
-                                        <div className="p-2 bg-indigo-50 text-indigo-600 rounded-lg group-hover:bg-indigo-100 transition-colors">
-                                            <FileText size={18} />
+                                <td className="px-4 py-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className="p-1.5 bg-indigo-50 text-indigo-600 rounded-md group-hover:bg-indigo-100 transition-colors shrink-0">
+                                            <FileText size={14} />
                                         </div>
-                                        <div>
-                                            <div className="font-bold text-slate-800 text-sm group-hover:text-indigo-600 transition-colors">{sim.name}</div>
-                                            <div className="text-[10px] text-slate-400 font-mono">ID: {sim.id.split('-')[0]}</div>
+                                        <div className="min-w-0">
+                                            <div className="font-bold text-slate-800 text-xs truncate max-w-[150px] group-hover:text-indigo-600 transition-colors">{sim.name}</div>
+                                            <div className="text-[9px] text-slate-400 font-mono leading-none">ID: {sim.id.split('-')[0]}</div>
                                         </div>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-sm text-slate-600 font-medium">
-                                        {sim.input.weeks} <span className="text-[10px] text-slate-400">wks</span>
+                                <td className="px-3 py-2">
+                                    <div className="text-xs text-slate-600 font-medium">
+                                        {sim.input.weeks} <span className="text-[9px] text-slate-400">sem</span>
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="text-sm font-bold text-emerald-600 flex items-center gap-1">
-                                        <DollarSign size={12} strokeWidth={3} />
+                                <td className="px-3 py-2">
+                                    <div className="text-xs font-bold text-emerald-600 flex items-center gap-0.5">
+                                        <DollarSign size={10} strokeWidth={3} />
                                         {sim.result?.with_decree_111?.toLocaleString('es-MX', { maximumFractionDigits: 0 }) || sim.result?.netPension?.toLocaleString()}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4">
-                                    <div className="flex items-center gap-2 text-slate-500 text-xs">
-                                        <Calendar size={12} />
+                                <td className="px-3 py-2">
+                                    <div className="flex items-center gap-1 text-slate-500 text-[10px]">
+                                        <Calendar size={10} />
                                         {new Date(sim.createdAt).toLocaleDateString()}
                                     </div>
                                 </td>
-                                <td className="px-6 py-4 text-right">
+                                <td className="px-3 py-2 text-right">
                                     <button
                                         onClick={(e) => handleDelete(e, sim.id)}
-                                        className="p-2 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                        className="p-1.5 text-slate-305 hover:text-rose-500 hover:bg-rose-50 rounded-md transition-all"
                                         title="Eliminar"
                                     >
-                                        <Trash2 size={16} />
+                                        <Trash2 size={12} />
                                     </button>
                                 </td>
                             </tr>

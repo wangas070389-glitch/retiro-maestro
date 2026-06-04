@@ -1,6 +1,7 @@
 import { Page, Text, View, Document, Image, Link } from '@react-pdf/renderer';
 import { PensionInput } from '../../lib/engine/pension-engine';
 import { reportStyles as styles } from './reportStyles';
+import { PersonaClassifier } from '../../lib/engine/persona-classifier';
 
 interface ReportProps {
     clientName?: string;
@@ -57,6 +58,10 @@ interface ReportProps {
 
 export const RetirementReport = ({ clientName = "Usuario", input, strategyName, strategyResult, baselineResult, projectionData, baselineProjectionData, bundle, certifiedDossier, agencyProfile }: ReportProps) => {
     const deltaMonthly = baselineResult ? (strategyResult.pensionMensual - baselineResult.pensionMensual) : 0;
+    
+    const isWorking = input.is_ongoing_work !== false;
+    const lastBajaDate = input.last_termination_date;
+    const group = PersonaClassifier.classify(input.age, isWorking, input.weeks, lastBajaDate);
 
     return (
         <Document>
@@ -65,6 +70,7 @@ export const RetirementReport = ({ clientName = "Usuario", input, strategyName, 
                 <View style={styles.header}>
                     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
                         {agencyProfile?.agencyLogoUrl && (
+                            /* eslint-disable-next-line jsx-a11y/alt-text */
                             <Image src={agencyProfile.agencyLogoUrl} style={{ width: 40, height: 40, marginRight: 10, objectFit: 'contain' }} />
                         )}
                         <View>
@@ -248,6 +254,37 @@ export const RetirementReport = ({ clientName = "Usuario", input, strategyName, 
                 </View>
 
                 {/* AMORTIZATION TABLES END */}
+
+                {/* PLAN DE ACCIÓN PERSONALIZADO */}
+                {group && (
+                    <View style={[styles.section, { borderTopWidth: 2, borderTopColor: group.riskStatus === 'CRITICAL' ? '#ef4444' : group.riskStatus === 'HIGH' ? '#f59e0b' : '#10b981', marginTop: 15 }]}>
+                        <Text style={[styles.sectionTitle, { color: group.riskStatus === 'CRITICAL' ? '#b91c1c' : group.riskStatus === 'HIGH' ? '#b45309' : '#047857', borderBottomColor: '#cbd5e1', marginBottom: 6, fontSize: 11 }]}>
+                            Plan de Acción Recomendado ({group.title})
+                        </Text>
+                        <Text style={{ fontSize: 8, color: '#334155', lineHeight: 1.4, marginBottom: 8 }}>
+                            {group.description}
+                        </Text>
+                        
+                        <View style={{ flexDirection: 'row' }}>
+                            <View style={{ flex: 1, marginRight: 10 }}>
+                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#475569', marginBottom: 4 }}>PASOS RECOMENDADOS:</Text>
+                                {group.recommendations.map((rec: string, index: number) => (
+                                    <Text key={index} style={{ fontSize: 7, color: '#475569', marginBottom: 3 }}>
+                                        • {rec}
+                                    </Text>
+                                ))}
+                            </View>
+                            <View style={{ flex: 1 }}>
+                                <Text style={{ fontSize: 8, fontWeight: 'bold', color: '#475569', marginBottom: 4 }}>RUTAS ALTERNATIVAS:</Text>
+                                {group.alternatives.map((alt: string, index: number) => (
+                                    <Text key={index} style={{ fontSize: 7, color: '#475569', marginBottom: 3 }}>
+                                        ➔ {alt}
+                                    </Text>
+                                ))}
+                            </View>
+                        </View>
+                    </View>
+                )}
 
                 {/* SOVEREIGN PROOF */}
                 {bundle && (

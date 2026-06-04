@@ -21,6 +21,7 @@ Security audits, vulnerability assessments, and adversarial reviews of the syste
 | **RED-014** | [RED-014.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/red-team/RED-014.md) | **ACTIVE** | Age-Based Projection Inaccuracies & Employment Gaps. |
 | **RED-015** | [RED-015.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/red-team/RED-015.md) | **ACTIVE** | Kinetic Interface Stress & Accessibility Analysis. |
 | **RED-016** | [RED-016.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/red-team/RED-016.md) | **ACTIVE** | Threat Model for Client-Side PDF Parsing. |
+| **RED-022** | [RED-022.md](file:///c:/Users/wanga/OneDrive/Escritorio/Antigravity-projects/retiro_maestro/docs/docs/red-team/RED-022.md) | **ACTIVE** | Zod Schema Evolution and Backwards Compatibility Validation. |
 
 ## Metadata
 - **Domain**: Cyber-Security

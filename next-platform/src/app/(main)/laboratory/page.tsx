@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { FlaskConical, Scale, Clock, CreditCard, Users } from 'lucide-react';
 import { useState } from 'react';
@@ -32,19 +32,38 @@ export default function LaboratoryPage() {
     const [toolSpouse, setToolSpouse] = useState(true);
     const [toolChildren, setToolChildren] = useState(0);
 
-    const UMA_MENSUAL = 117.31 * 30.4;
+    const UMA_DIARIA = 117.67; // Synced with legal-anchors.json uma_2026
+    const UMA_MENSUAL = UMA_DIARIA * 30.4;
     const EXENCION_ISR_UMAS = 15;
+
+    // Official SAT ISR Monthly Brackets (Art. 96 LISR — 2025/2026 Tarifa Mensual)
+    const ISR_BRACKETS: [number, number, number, number][] = [
+        [0.01,       746.04,      0.00,     0.0192],
+        [746.05,     6332.05,     14.32,    0.0640],
+        [6332.06,    11128.01,    371.83,   0.1088],
+        [11128.02,   12935.82,    893.63,   0.1600],
+        [12935.83,   15487.71,    1182.88,  0.1792],
+        [15487.72,   31236.49,    1640.18,  0.2136],
+        [31236.50,   49233.00,    4005.46,  0.2352],
+        [49233.01,   93993.90,    8235.20,  0.3000],
+        [93993.91,   125325.20,   21663.57, 0.3200],
+        [125325.21,  375975.61,   31689.59, 0.3400],
+        [375975.62,  Infinity,    116890.70,0.3500],
+    ];
 
     // Tax Logic
     const exemptionAmount = UMA_MENSUAL * EXENCION_ISR_UMAS;
     const taxableIncome = Math.max(0, pensionForTax - exemptionAmount);
     let estimatedTax = 0;
     if (taxableIncome > 0) {
-        if (taxableIncome < 10000) estimatedTax = taxableIncome * 0.10;
-        else if (taxableIncome < 20000) estimatedTax = 1000 + (taxableIncome - 10000) * 0.15;
-        else estimatedTax = 3500 + (taxableIncome - 20000) * 0.30;
+        for (const [lower, upper, fixedFee, rate] of ISR_BRACKETS) {
+            if (taxableIncome >= lower && taxableIncome <= upper) {
+                estimatedTax = fixedFee + (taxableIncome - lower + 0.01) * rate;
+                break;
+            }
+        }
     }
-    const netPension = pensionForTax - estimatedTax;
+    const netPension = pensionForTax - Math.max(0, Math.round(estimatedTax * 100) / 100);
 
     // Retroactive Logic
     const monthlyPayment2024 = 8500;
@@ -145,7 +164,7 @@ export default function LaboratoryPage() {
                     </div>
 
                     <div className="bg-slate-50 p-4 rounded-lg">
-                        <p className="text-xs text-slate-400 mb-1">Pago Ãšnico (+Recargos)</p>
+                        <p className="text-xs text-slate-400 mb-1">Pago Único (+Recargos)</p>
                         <p className="text-2xl font-bold text-slate-800">${totalRetroPayment.toLocaleString()}</p>
                     </div>
 

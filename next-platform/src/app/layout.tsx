@@ -1,4 +1,4 @@
-﻿import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { SessionProvider } from "next-auth/react";
@@ -10,7 +10,12 @@ const font = Plus_Jakarta_Sans({ subsets: ["latin"] });
 export const metadata: Metadata = {
     title: 'Retiro Maestro | Sovereign Pension Intelligence',
     description: 'Secure, immutable retirement strategy powered by the Thelma Protocol. Calculated with actuarial precision and protected by cryptographic signatures.',
-    viewport: 'width=device-width, initial-scale=1, maximum-scale=1',
+}
+
+export const viewport: Viewport = {
+    width: 'device-width',
+    initialScale: 1,
+    maximumScale: 1,
     themeColor: '#0f172a', // Slate-950
 }
 

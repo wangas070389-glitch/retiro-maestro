@@ -14,6 +14,10 @@ export default async function MainLayout({
             <StoreInitializer
                 userId={session?.user?.id || null}
                 userName={session?.user?.name || null}
+                birthDate={session?.user?.birthDate}
+                nss={session?.user?.nss}
+                isWorking={session?.user?.isWorking}
+                lastBajaDate={session?.user?.lastBajaDate}
             />
             <Sidebar />
             <div className="flex-1 w-full min-w-0 lg:p-4 lg:ml-[68px]">

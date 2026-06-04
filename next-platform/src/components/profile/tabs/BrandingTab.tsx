@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Store, Phone, Image as ImageIcon } from 'lucide-react';
+import Image from 'next/image';
 import { updateAgencyInfoAction } from '@/actions/user-actions';
 import { useToast } from '@/components/ui/toast-context';
 
@@ -31,7 +32,13 @@ export function BrandingTab({ session, updateSession }: BrandingTabProps) {
         const res = await updateAgencyInfoAction(agencyName, agencyPhone, agencyLogoUrl);
         if (res.success && res.user) {
             showToast("Identidad Marca Blanca actualizada exitosamente", "success");
-            await updateSession();
+            await updateSession({
+                user: {
+                    agencyName: res.user.agencyName,
+                    agencyPhone: res.user.agencyPhone,
+                    agencyLogoUrl: res.user.agencyLogoUrl
+                }
+            });
         } else {
             showToast(res.error || "Error desconocido", "error");
         }
@@ -53,7 +60,7 @@ export function BrandingTab({ session, updateSession }: BrandingTabProps) {
             {agencyName && (
                 <div className="bg-slate-50 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 flex items-center gap-5">
                     {agencyLogoUrl ? (
-                        <img src={agencyLogoUrl} alt="Logo" className="w-14 h-14 rounded-xl object-contain border border-slate-200 dark:border-slate-700 bg-white p-1" />
+                        <Image src={agencyLogoUrl} alt="Logo" width={56} height={56} className="w-14 h-14 rounded-xl object-contain border border-slate-200 dark:border-slate-700 bg-white p-1" unoptimized />
                     ) : (
                         <div className="w-14 h-14 rounded-xl bg-indigo-100 dark:bg-indigo-950/30 flex items-center justify-center border border-indigo-200 dark:border-indigo-800">
                             <Store size={24} className="text-indigo-500" />

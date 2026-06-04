@@ -84,7 +84,12 @@ export async function getSimulationsAction(clientId?: string | null) {
 
     try {
         const simulations = await db.simulation.findMany({
-            where: { userId: targetUserId },
+            where: {
+                OR: [
+                    { userId: targetUserId },
+                    { clientId: targetUserId }
+                ]
+            },
             orderBy: { createdAt: 'desc' }
         });
 

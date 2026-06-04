@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useSession } from 'next-auth/react';
 import { Users, ShieldCheck, ArrowRight, UserSquare2, Globe, Clock, Zap, MapPin } from 'lucide-react';
 import { fetchAssignedClientsAction, fetchMarketLeadsAction } from '@/actions/advisor-actions';
@@ -18,13 +18,7 @@ export default function PortfolioPage() {
     const [loading, setLoading] = useState(true);
     const [isClaiming, setIsClaiming] = useState<string | null>(null);
 
-    useEffect(() => {
-        if (session?.user?.role === 'ADVISOR' || session?.user?.role === 'ADMIN') {
-            loadPortfolio();
-        }
-    }, [session]);
-
-    async function loadPortfolio() {
+    const loadPortfolio = useCallback(async () => {
         setLoading(true);
         const res = await fetchAssignedClientsAction();
         if (res.success && res.clients) setClients(res.clients);
@@ -34,7 +28,13 @@ export default function PortfolioPage() {
         if (marketRes.success && marketRes.leads) setMarketLeads(marketRes.leads);
 
         setLoading(false);
-    }
+    }, [showToast]);
+
+    useEffect(() => {
+        if (session?.user?.role === 'ADVISOR' || session?.user?.role === 'ADMIN') {
+            loadPortfolio();
+        }
+    }, [session, loadPortfolio]);
 
     async function handleClaimLead(leadId: string) {
         setIsClaiming(leadId);

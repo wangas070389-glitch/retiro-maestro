@@ -26,6 +26,9 @@ import { updateClientCRMAction, selectClientStrategyAction, updateActuarialDataA
 import { useToast } from '@/components/ui/toast-context';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DossierGeneratorPanel } from '@/components/workspace/DossierGeneratorPanel';
+import { PersonaClassifier } from '@/lib/engine/persona-classifier';
+import { selectStrategyAction, togglePaymentStatusAction, clearStrategyAction, getClientTrackingAction } from '@/actions/tracking-actions';
+import { RotateCcw } from 'lucide-react';
 
 interface ClosingTerminalProps {
     clientId: string;
@@ -36,6 +39,9 @@ interface ClosingTerminalProps {
         currentWeeks: number;
         avgSalary: number;
         lastBajaDate: string;
+        isWorking: boolean;
+        activeStrategy?: string | null;
+        m40PaymentsState?: string | null;
         currentStage: string;
         notes: string;
         selectedStrategyId?: string;
@@ -57,6 +63,28 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
     const [notes, setNotes] = useState(initialData.notes || '');
     const [isSavingCRM, setIsSavingCRM] = useState(false);
     const [selectedId, setSelectedId] = useState(initialData.selectedStrategyId);
+
+    // --- M40 Agenda & Persona State ---
+    const [trackingState, setTrackingState] = useState<any>(() => {
+        if (initialData.m40PaymentsState) {
+            try {
+                return JSON.parse(initialData.m40PaymentsState);
+            } catch (e) {
+                return null;
+            }
+        }
+        return null;
+    });
+    const [isUpdatingPayment, setIsUpdatingPayment] = useState(false);
+
+    const personaGroup = useMemo(() => {
+        return PersonaClassifier.classify(
+            age,
+            initialData.isWorking !== false,
+            weeks,
+            initialData.lastBajaDate
+        );
+    }, [age, weeks, initialData.isWorking, initialData.lastBajaDate]);
 
     // --- 3. REACTIVE CALCULATIONS ---
     const scenarios = useMemo(() => {
@@ -98,6 +126,40 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
         if (res.success) {
             setSelectedId(strat.type);
             showToast(`Estrategia "${strat.name}" seleccionada`, "success");
+
+            if (strat.type !== 'BASE') {
+                const currentYear = new Date().getFullYear();
+                const currentMonth = new Date().getMonth() + 1;
+                let monthsToProject = 12;
+                if (strat.type === 'M40_1Y') monthsToProject = 12;
+                else if (strat.type === 'M40_2Y') monthsToProject = 24;
+                else if (strat.type === 'M40_3Y') monthsToProject = 36;
+                else if (strat.type === 'M40_5Y') monthsToProject = 60;
+
+                const dailySalary = (strat.input.anchor_salary || 108.57) * 25;
+
+                const trackingRes = await selectStrategyAction(
+                    strat.name,
+                    dailySalary,
+                    monthsToProject,
+                    currentYear,
+                    currentMonth,
+                    clientId
+                );
+
+                if (trackingRes.success) {
+                    showToast("Agenda de pagos generada con éxito.", "success");
+                    const resState = await getClientTrackingAction(clientId);
+                    if (resState.success && resState.m40PaymentsState) {
+                        setTrackingState(JSON.parse(resState.m40PaymentsState));
+                    }
+                } else {
+                    showToast("Error al inicializar agenda de pagos: " + trackingRes.error, "error");
+                }
+            } else {
+                await clearStrategyAction(clientId);
+                setTrackingState(null);
+            }
         }
     }
 
@@ -162,6 +224,65 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
                 >
                     {activeTab === 'decision' && (
                         <div className="max-w-6xl mx-auto space-y-8">
+                            {/* Persona Status Card for Advisor */}
+                            {personaGroup && (
+                                <div className={`p-8 rounded-[2.5rem] border shadow-sm relative overflow-hidden transition-all duration-300 ${
+                                    personaGroup.riskStatus === 'CRITICAL' 
+                                        ? 'bg-rose-50/80 border-rose-200 dark:bg-rose-950/20 dark:border-rose-900/30 text-rose-900 dark:text-rose-300 shadow-rose-100/50' 
+                                        : personaGroup.riskStatus === 'HIGH' 
+                                        ? 'bg-amber-50/80 border-amber-200 dark:bg-amber-950/20 dark:border-amber-900/30 text-amber-900 dark:text-amber-300 shadow-amber-100/50' 
+                                        : personaGroup.riskStatus === 'MEDIUM' 
+                                        ? 'bg-yellow-50/80 border-yellow-200 dark:bg-yellow-950/20 dark:border-yellow-900/30 text-yellow-900 dark:text-yellow-300 shadow-yellow-100/50' 
+                                        : 'bg-emerald-50/80 border-emerald-200 dark:bg-emerald-950/20 dark:border-emerald-900/30 text-emerald-900 dark:text-emerald-300 shadow-emerald-100/50'
+                                }`}>
+                                    <div className="flex items-start gap-4">
+                                        <div className={`p-3 rounded-2xl ${
+                                            personaGroup.riskStatus === 'CRITICAL' ? 'bg-rose-100 text-rose-600' :
+                                            personaGroup.riskStatus === 'HIGH' ? 'bg-amber-100 text-amber-600' :
+                                            personaGroup.riskStatus === 'MEDIUM' ? 'bg-yellow-100 text-yellow-600' :
+                                            'bg-emerald-100 text-emerald-600'
+                                        }`}>
+                                            <AlertCircle className="w-6 h-6" />
+                                        </div>
+                                        <div className="space-y-4 flex-1">
+                                            <div>
+                                                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Diagnóstico del Grupo de Cliente</span>
+                                                <h3 className="text-xl font-bold mt-0.5">{personaGroup.title}</h3>
+                                            </div>
+                                            <p className="text-sm opacity-90 leading-relaxed">
+                                                {personaGroup.description}
+                                            </p>
+
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-2 border-t border-slate-200/40">
+                                                <div className="space-y-2">
+                                                    <h4 className="text-xs font-bold uppercase tracking-wider opacity-60">Pasos Recomendados:</h4>
+                                                    <ul className="space-y-2 text-sm">
+                                                        {personaGroup.recommendations.map((rec: string, index: number) => (
+                                                            <li key={index} className="flex items-start gap-2">
+                                                                <span className="text-indigo-500 font-bold mt-0.5">•</span>
+                                                                <span>{rec}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+
+                                                <div className="space-y-2">
+                                                    <h4 className="text-xs font-bold uppercase tracking-wider opacity-60">Rutas Alternativas:</h4>
+                                                    <ul className="space-y-2 text-sm">
+                                                        {personaGroup.alternatives.map((alt: string, index: number) => (
+                                                            <li key={index} className="flex items-start gap-2">
+                                                                <span className="text-slate-400 font-bold mt-0.5">➔</span>
+                                                                <span>{alt}</span>
+                                                            </li>
+                                                        ))}
+                                                    </ul>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* Insight Block */}
                             <div className="bg-gradient-to-br from-rose-600 to-rose-700 rounded-[3rem] p-10 text-white shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-[100px] -translate-y-1/2 translate-x-1/2" />
@@ -295,7 +416,7 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
                     )}
 
                     {activeTab === 'execution' && (
-                        <div className="max-w-4xl mx-auto space-y-8">
+                        <div className="max-w-6xl mx-auto space-y-8 animate-in fade-in duration-300">
                             <div className="bg-slate-900 rounded-[3rem] p-12 text-white shadow-2xl relative overflow-hidden">
                                 <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 rounded-full blur-[100px]" />
                                 <h3 className="text-2xl font-black mb-12 flex items-center gap-3"><Zap className="text-emerald-400" /> Hoja de Ruta Ejecutiva</h3>
@@ -325,6 +446,148 @@ export function ClosingTerminal({ clientId, isLead, initialData, agency }: Closi
                                     ))}
                                 </div>
                             </div>
+
+                            {/* Agenda de Pagos (Payment Checklist) */}
+                            {trackingState ? (
+                                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                                    {/* Summary Card */}
+                                    <div className="lg:col-span-1 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-6 text-slate-800 dark:text-slate-200">
+                                        <div>
+                                            <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Plan de Pagos Activo</span>
+                                            <h3 className="text-xl font-black mt-1 leading-tight text-slate-800 dark:text-white">
+                                                {trackingState.strategyName}
+                                            </h3>
+                                            <p className="text-xs text-slate-500 mt-1">
+                                                Cotizando a: <span className="font-bold text-indigo-600">${Number(trackingState.dailySalaryMxn).toLocaleString('es-MX', { maximumFractionDigits: 2 })} MXN/día</span>
+                                            </p>
+                                        </div>
+
+                                        {/* Progress Metrics */}
+                                        {(() => {
+                                            const paidCount = trackingState.payments.filter((p: any) => p.status === 'PAID').length;
+                                            const totalCount = trackingState.payments.length;
+                                            const percent = totalCount > 0 ? Math.round((paidCount / totalCount) * 100) : 0;
+                                            const totalPaidMxn = trackingState.payments
+                                                .filter((p: any) => p.status === 'PAID')
+                                                .reduce((sum: number, p: any) => sum + p.amount, 0);
+                                            const totalPendingMxn = trackingState.payments
+                                                .filter((p: any) => p.status === 'PENDING')
+                                                .reduce((sum: number, p: any) => sum + p.amount, 0);
+                                            return (
+                                                <>
+                                                    <div className="space-y-2">
+                                                        <div className="flex justify-between items-baseline">
+                                                            <span className="text-xs font-bold text-slate-500 uppercase">Progreso del Cliente</span>
+                                                            <span className="text-sm font-black text-indigo-600">{paidCount} / {totalCount} ({percent}%)</span>
+                                                        </div>
+                                                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-2.5 rounded-full overflow-hidden">
+                                                            <div className="bg-indigo-600 h-full rounded-full transition-all duration-500" style={{ width: `${percent}%` }} />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
+                                                        <div className="flex justify-between text-xs font-medium text-slate-500">
+                                                            <span>Inversión Pagada</span>
+                                                            <span className="font-bold text-slate-800 dark:text-slate-200">${totalPaidMxn.toLocaleString('es-MX', { maximumFractionDigits: 2 })} MXN</span>
+                                                        </div>
+                                                        <div className="flex justify-between text-xs font-medium text-slate-500">
+                                                            <span>Inversión Pendiente</span>
+                                                            <span className="font-bold text-slate-800 dark:text-slate-200">${totalPendingMxn.toLocaleString('es-MX', { maximumFractionDigits: 2 })} MXN</span>
+                                                        </div>
+                                                    </div>
+                                                </>
+                                            );
+                                        })()}
+
+                                        <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                                            <button
+                                                onClick={async () => {
+                                                    if (confirm("¿Estás seguro de que deseas limpiar la estrategia de este cliente y reiniciar su agenda de pagos?")) {
+                                                        const res = await clearStrategyAction(clientId);
+                                                        if (res.success) {
+                                                            showToast("Estrategia del cliente reiniciada", "success");
+                                                            setTrackingState(null);
+                                                        } else {
+                                                            showToast("Error: " + res.error, "error");
+                                                        }
+                                                    }
+                                                }}
+                                                className="w-full flex items-center justify-center gap-2 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-rose-600 font-bold py-3 rounded-xl transition-all text-xs uppercase tracking-wider"
+                                            >
+                                                <RotateCcw size={14} />
+                                                Reiniciar Agenda
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    {/* Checklist */}
+                                    <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-sm space-y-4 text-slate-800 dark:text-slate-200">
+                                        <h3 className="text-lg font-bold flex items-center gap-2">
+                                            <CheckSquare className="text-indigo-600" size={18} /> Control de Pagos Realizados (Seguimiento de Asesor)
+                                        </h3>
+                                        <p className="text-xs text-slate-500 mb-4">
+                                            Valida y marca los pagos que el cliente vaya completando. Esta información se sincroniza en tiempo real con su portal de usuario.
+                                        </p>
+
+                                        <div className="max-h-[400px] overflow-y-auto pr-2 space-y-2">
+                                            {trackingState.payments.map((payment: any) => {
+                                                const isPaid = payment.status === 'PAID';
+                                                return (
+                                                    <div 
+                                                        key={payment.id} 
+                                                        className={`flex items-center justify-between p-4 border rounded-2xl transition-all ${
+                                                            isPaid 
+                                                                ? 'bg-emerald-50/40 border-emerald-100 dark:bg-emerald-950/10 dark:border-emerald-900/30' 
+                                                                : 'bg-slate-50/50 border-slate-200 dark:bg-slate-900 dark:border-slate-800'
+                                                        }`}
+                                                    >
+                                                        <div className="flex items-center gap-3">
+                                                            <input 
+                                                                type="checkbox"
+                                                                id={`pay-${payment.id}`}
+                                                                className="accent-indigo-600 w-5 h-5 cursor-pointer rounded"
+                                                                checked={isPaid}
+                                                                disabled={isUpdatingPayment}
+                                                                onChange={async (e) => {
+                                                                    setIsUpdatingPayment(true);
+                                                                    const newStatus = e.target.checked ? 'PAID' : 'PENDING';
+                                                                    const res = await togglePaymentStatusAction(payment.id, newStatus, clientId);
+                                                                    if (res.success && res.payments) {
+                                                                        setTrackingState({ ...trackingState, payments: res.payments });
+                                                                        showToast(`Pago de ${payment.label} marcado como ${newStatus === 'PAID' ? 'pagado' : 'pendiente'}.`, "success");
+                                                                    } else {
+                                                                        showToast("Error: " + (res.error || "No se pudo actualizar el pago"), "error");
+                                                                    }
+                                                                    setIsUpdatingPayment(false);
+                                                                }}
+                                                            />
+                                                            <label htmlFor={`pay-${payment.id}`} className="cursor-pointer">
+                                                                <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{payment.label}</p>
+                                                                <p className="text-[10px] text-slate-400">Cuota proyectada: {payment.days} días al {(payment.rate * 100).toFixed(3)}%</p>
+                                                            </label>
+                                                        </div>
+                                                        <div className="text-right">
+                                                            <p className={`text-sm font-black ${isPaid ? 'text-emerald-700 dark:text-emerald-400' : 'text-indigo-900 dark:text-indigo-300'}`}>
+                                                                ${payment.amount.toLocaleString('es-MX', { minimumFractionDigits: 2 })} MXN
+                                                            </p>
+                                                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${
+                                                                isPaid ? 'bg-emerald-200/50 text-emerald-800' : 'bg-slate-200 text-slate-600'
+                                                            }`}>
+                                                                {isPaid ? 'Pagado' : 'Pendiente'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="p-8 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl text-center shadow-sm">
+                                    <p className="text-slate-500 dark:text-slate-400 font-medium">El cliente aún no tiene una estrategia de aportaciones activa.</p>
+                                    <p className="text-xs text-slate-400 mt-2">Selecciona una propuesta en la pestaña &quot;Decisión&quot; para generar automáticamente la agenda de pagos.</p>
+                                </div>
+                            )}
                         </div>
                     )}
 

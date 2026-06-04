@@ -1,8 +1,13 @@
 'use client';
 
 import { useState } from 'react';
-import { PDFDownloadTrigger } from './PDFDownloadTrigger';
 import { FileText, AlignLeft } from 'lucide-react';
+import dynamic from 'next/dynamic';
+
+const PDFDownloadTrigger = dynamic(
+    () => import('./PDFDownloadTrigger').then(mod => mod.PDFDownloadTrigger),
+    { ssr: false }
+);
 
 interface DossierGeneratorPanelProps {
     agency: { name: string; phone: string; logoUrl?: string };

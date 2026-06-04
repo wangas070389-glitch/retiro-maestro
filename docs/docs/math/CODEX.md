@@ -20,6 +20,7 @@ Actuarial models, legal anchor data, and pension laws formalized for engine impl
 | **MATH-013** | [MATH-013.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/math/MATH-013.md) | **ACTIVE** | ROI Visualization Scale & Interpolation. |
 | **MATH-014** | [MATH-014.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/math/MATH-014.md) | **ACTIVE** | Protocol 17 Temporal Boundary Calibrations. |
 | **MATH-016** | [MATH-016.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/math/MATH-016.md) | **ACTIVE** | M40 Progressive Cost Scaling & Gregorian Days logic. |
+| **MATH-017** | [MATH-017.md](file:///c:/Users/wanga/OneDrive/Escritorio/Antigravity-projects/retiro_maestro/docs/docs/math/MATH-017.md) | **ACTIVE** | Mathematical Model for Progressive Modalidad 40 Rates and Persona Rules. |
 
 ## Metadata
 - **Domain**: Actuarial Logic

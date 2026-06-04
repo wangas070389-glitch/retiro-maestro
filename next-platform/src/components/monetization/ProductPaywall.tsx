@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { useSession } from 'next-auth/react';
+import Image from 'next/image';
 import { ShieldCheck, Zap, ChevronRight, Check, Sparkles, Building2, Gavel, Heart, FileCheck, TrendingUp } from 'lucide-react';
 import { upgradeTierAction } from '@/actions/monetization-actions';
 import { useToast } from '../ui/toast-context';
@@ -212,7 +213,7 @@ export function ProductPaywall({ isLockout = false }: { isLockout?: boolean }) {
                                                 </div>
                                             </div>
                                             <div className="flex items-center gap-2 grayscale brightness-200">
-                                                 <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-2.5" />
+                                                 <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={40} height={10} className="h-2.5 w-auto" unoptimized />
                                                  <div className="w-px h-2 bg-slate-500"></div>
                                                  <ShieldCheck size={8} className="text-white" />
                                                  <span className="text-[7px] font-bold text-slate-500 uppercase tracking-tighter">Datos protegidos</span>
@@ -295,7 +296,7 @@ export function ProductPaywall({ isLockout = false }: { isLockout?: boolean }) {
                                     </button>
                                     
                                     <div className="mt-4 flex items-center justify-center gap-3 opacity-30 grayscale scale-90">
-                                         <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-4" />
+                                         <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={64} height={16} className="h-4 w-auto" unoptimized />
                                          <div className="w-px h-3 bg-slate-400"></div>
                                          <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest leading-none">{content.proofText}</span>
                                     </div>
@@ -308,7 +309,7 @@ export function ProductPaywall({ isLockout = false }: { isLockout?: boolean }) {
                 {!isLockout && (
                     <div className="mt-16 pt-12 border-t border-slate-200 dark:border-slate-800 flex flex-col md:flex-row items-center justify-between gap-8">
                         <div className="flex items-center gap-6 opacity-40 grayscale transition-all hover:grayscale-0 hover:opacity-100 cursor-help">
-                            <img src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" className="h-6" />
+                            <Image src="https://upload.wikimedia.org/wikipedia/commons/b/ba/Stripe_Logo%2C_revised_2016.svg" alt="Stripe" width={96} height={24} className="h-6 w-auto" unoptimized />
                             <div className="w-px h-6 bg-slate-300"></div>
                             <span className="text-[10px] font-bold text-slate-500 tracking-widest uppercase">{content.proofText}</span>
                         </div>

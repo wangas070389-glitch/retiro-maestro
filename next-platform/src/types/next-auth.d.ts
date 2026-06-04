@@ -15,6 +15,14 @@ declare module 'next-auth' {
             leadStatus?: string | null;
             residencyState?: string | null;
             operationState?: string | null;
+            remoteReady?: boolean | null;
+            age?: number | null;
+            currentWeeks?: number | null;
+            avgSalary?: number | null;
+            lastBajaDate?: string | Date | null;
+            nss?: string | null;
+            birthDate?: string | Date | null;
+            isWorking?: boolean | null;
         } & DefaultSession['user'];
     }
 
@@ -30,6 +38,14 @@ declare module 'next-auth' {
         leadStatus?: string | null;
         residencyState?: string | null;
         operationState?: string | null;
+        remoteReady?: boolean | null;
+        age?: number | null;
+        currentWeeks?: number | null;
+        avgSalary?: number | null;
+        lastBajaDate?: string | Date | null;
+        nss?: string | null;
+        birthDate?: string | Date | null;
+        isWorking?: boolean | null;
     }
 }
 
@@ -46,5 +62,13 @@ declare module 'next-auth/jwt' {
         leadStatus?: string | null;
         residencyState?: string | null;
         operationState?: string | null;
+        remoteReady?: boolean | null;
+        age?: number | null;
+        currentWeeks?: number | null;
+        avgSalary?: number | null;
+        lastBajaDate?: string | Date | null;
+        nss?: string | null;
+        birthDate?: string | Date | null;
+        isWorking?: boolean | null;
     }
 }

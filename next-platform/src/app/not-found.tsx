@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { Plus_Jakarta_Sans } from 'next/font/google';
@@ -48,7 +48,7 @@ export default function NotFound() {
 
             {/* Minimal Footer */}
             <div className="mt-12 text-sm text-slate-500 relative z-10">
-                Retiro Maestro Â© {new Date().getFullYear()}
+                Retiro Maestro © {new Date().getFullYear()}
             </div>
         </div>
     );

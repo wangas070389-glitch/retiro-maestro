@@ -1,11 +1,9 @@
 'use client';
 
 import { Scale, FileSignature, Download, CalendarDays, ShieldCheck, CheckCircle2, Lock, ArrowRight, Activity, FileText, ShieldAlert, UserPlus, MapPin, ExternalLink } from 'lucide-react';
+import Image from 'next/image';
 import { triggerInitialRouting } from '../../../actions/routing-actions';
 import { updateResidencyStateAction } from '../../../actions/user-actions';
-import { PDFDownloadLink } from '@react-pdf/renderer';
-import { OfficialDocument } from '../../../components/reports/OfficialDocument';
-import { RetirementReport } from '../../../components/reports/RetirementReport';
 import { useSimulationStore } from '../../../store';
 import { getSealedDossiersAction, verifyDossierIntegrityAction } from '../../../actions/authority-actions';
 import { useEffect, useState, useMemo } from 'react';
@@ -16,6 +14,17 @@ import { calculateProjectionAction } from '../../../actions/calculate-pension';
 import { generateDocumentAction } from '../../../actions/generate-document';
 import { useToast } from '../../../components/ui/toast-context';
 import { useSearchParams } from 'next/navigation';
+import dynamic from 'next/dynamic';
+
+const OfficialDocumentPDFButton = dynamic(
+    () => import('@/components/reports/PDFDownloadButtons').then(mod => mod.OfficialDocumentPDFButton),
+    { ssr: false }
+);
+
+const AuthorityRetirementPDFButton = dynamic(
+    () => import('@/components/reports/PDFDownloadButtons').then(mod => mod.AuthorityRetirementPDFButton),
+    { ssr: false }
+);
 
 const Card = ({ children, className = "" }: { children: React.ReactNode, className?: string }) => (
     <div className={`bg-white rounded-2xl shadow-sm border border-slate-200 p-8 ${className}`}>
@@ -80,6 +89,11 @@ export default function AuthorityPage() {
     const [verifying, setVerifying] = useState<string | null>(null);
     const { userProfile } = useSimulationStore();
 
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
     useEffect(() => {
         const fetchDossiers = async () => {
             const res = await getSealedDossiersAction(clientId);
@@ -141,6 +155,52 @@ export default function AuthorityPage() {
     const [requestingAdvisor, setRequestingAdvisor] = useState(false);
     const [residencyStateInput, setResidencyStateInput] = useState('');
 
+    const [leadStatus, setLeadStatus] = useState<string>('NONE');
+    const [hasAdvisor, setHasAdvisor] = useState<boolean>(false);
+    const [advisorName, setAdvisorName] = useState<string | null>(null);
+    const [advisorPhone, setAdvisorPhone] = useState<string | null>(null);
+    const [advisorEmail, setAdvisorEmail] = useState<string | null>(null);
+
+    // Sync initial session data to state to avoid visual jumps
+    useEffect(() => {
+        if (session?.user) {
+            const u = session.user as any;
+            setLeadStatus(u.leadStatus || 'NONE');
+            setHasAdvisor(u.leadStatus === 'CLAIMED' || !!u.advisorId);
+            setAdvisorName(u.advisorName || null);
+            setAdvisorPhone(u.advisorPhone || null);
+            setAdvisorEmail(u.advisorEmail || null);
+            if (u.residencyState) {
+                setResidencyStateInput(u.residencyState);
+            }
+        }
+    }, [session]);
+
+    // Live poller for B2C client's lead & advisor status
+    useEffect(() => {
+        if (session?.user?.role === 'USER') {
+            const checkStatus = async () => {
+                const { checkLeadStatusAction } = await import('../../../actions/routing-actions');
+                const res = await checkLeadStatusAction();
+                if (res.success && res.status) {
+                    setLeadStatus(res.status);
+                    setHasAdvisor(res.status === 'CLAIMED');
+                    setAdvisorName(res.advisorName || null);
+                    setAdvisorPhone(res.advisorPhone || null);
+                    setAdvisorEmail(res.advisorEmail || null);
+                    if (res.state) {
+                        setResidencyStateInput(res.state);
+                    }
+                }
+            };
+            
+            checkStatus();
+            
+            const interval = setInterval(checkStatus, 8000);
+            return () => clearInterval(interval);
+        }
+    }, [session]);
+
     const handleRequestAdvisor = async () => {
         if (!residencyStateInput && !(session?.user as any)?.residencyState) {
             showToast("Por favor selecciona tu estado de residencia.", "warning");
@@ -158,8 +218,7 @@ export default function AuthorityPage() {
         const res = await triggerInitialRouting();
         if (res.success) {
             showToast("Solicitud enviada. Analizando perfiles de expertos...", "success");
-            // Refresh session to update leadStatus locally
-            window.location.reload();
+            setLeadStatus('PENDING_INTERNAL');
         } else {
             showToast(res.error || "Error al solicitar asesor", "error");
         }
@@ -168,8 +227,6 @@ export default function AuthorityPage() {
 
     const isLocked = session?.user?.tier === 'FREE';
     const isB2C = session?.user?.role === 'USER';
-    const hasAdvisor = !!session?.user?.advisorId;
-    const leadStatus = (session?.user as any)?.leadStatus || 'NONE';
     const currentResidency = (session?.user as any)?.residencyState || '';
 
     useEffect(() => {
@@ -290,6 +347,42 @@ export default function AuthorityPage() {
                 </div>
             )}
 
+            {isB2C && hasAdvisor && (
+                <div className="p-8 rounded-3xl border-2 bg-gradient-to-br from-slate-900 to-indigo-950 border-indigo-500 text-white shadow-xl animate-in fade-in duration-500">
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-8">
+                        <div className="flex-1 space-y-3">
+                            <div className="flex items-center gap-3">
+                                <div className="p-3 rounded-2xl bg-indigo-500/20">
+                                    <ShieldCheck size={32} className="text-indigo-400 animate-pulse" />
+                                </div>
+                                <h2 className="text-3xl font-black tracking-tight text-white">
+                                    Asesor Actuarial Asignado
+                                </h2>
+                            </div>
+                            <p className="text-indigo-100 text-lg opacity-90 leading-relaxed max-w-2xl">
+                                Tu expediente legal y estrategia de pensiones están siendo validados por tu asesor certificado: <strong className="text-white font-bold">{advisorName || "Experto Certificado"}</strong>.
+                            </p>
+                            {(advisorPhone || advisorEmail) && (
+                                <div className="flex flex-wrap gap-4 pt-2 text-sm text-indigo-200">
+                                    {advisorPhone && (
+                                        <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+                                            <span className="font-bold text-[10px] uppercase tracking-widest text-indigo-300">Teléfono:</span>
+                                            <span className="font-semibold text-white">{advisorPhone}</span>
+                                        </div>
+                                    )}
+                                    {advisorEmail && (
+                                        <div className="flex items-center gap-2 bg-white/10 px-3 py-1.5 rounded-lg border border-white/10">
+                                            <span className="font-bold text-[10px] uppercase tracking-widest text-indigo-300">Email:</span>
+                                            <span className="font-semibold text-white">{advisorEmail}</span>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            )}
+
             {/* ZONE 1: Operativo */}
             <div>
                 <h2 className="text-xl font-bold text-slate-800 tracking-tight mb-6 flex items-center gap-2">
@@ -321,15 +414,14 @@ export default function AuthorityPage() {
                                         </div>
                                         <Badge type="neutral">No Generado</Badge>
                                     </div>
-                                    <PDFDownloadLink
-                                        document={<OfficialDocument docType="m40" clientName={userProfile.name} nss={userProfile.nss} />}
+                                    <OfficialDocumentPDFButton
+                                        docType="m40"
+                                        clientName={userProfile.name}
+                                        nss={userProfile.nss}
                                         fileName="Alta_Modalidad_40.pdf"
                                         className="w-full flex justify-center items-center gap-2 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-colors shadow-lg shadow-blue-600/20 mt-2"
-                                    >
-                                        {({ loading }) => (
-                                            loading ? 'Generando Documento...' : <><FileText size={18} /> Descargar Documento</>
-                                        )}
-                                    </PDFDownloadLink>
+                                        btnText="Descargar Documento"
+                                    />
                                 </div>
 
                                 {/* Document 2 */}
@@ -341,15 +433,14 @@ export default function AuthorityPage() {
                                         </div>
                                         <Badge type="neutral">No Generado</Badge>
                                     </div>
-                                    <PDFDownloadLink
-                                        document={<OfficialDocument docType="renuncia" clientName={userProfile.name} nss={userProfile.nss} />}
+                                    <OfficialDocumentPDFButton
+                                        docType="renuncia"
+                                        clientName={userProfile.name}
+                                        nss={userProfile.nss}
                                         fileName="Baja_Voluntaria.pdf"
                                         className="w-full flex justify-center items-center gap-2 py-3 bg-white text-blue-600 border-2 border-blue-600 font-bold rounded-xl hover:bg-blue-50 transition-colors mt-2"
-                                    >
-                                        {({ loading }) => (
-                                            loading ? 'Generando Documento...' : <><FileText size={18} /> Descargar Documento</>
-                                        )}
-                                    </PDFDownloadLink>
+                                        btnText="Descargar Documento"
+                                    />
                                 </div>
                             </div>
                         </Card>
@@ -443,7 +534,7 @@ export default function AuthorityPage() {
                                         Cada cálculo generado cuenta con un folio electrónico único que garantiza que los datos no han sido alterados y cumplen con la normativa vigente.
                                     </p>
                                 </div>
-                                <img src="https://cdn-icons-png.flaticon.com/512/6124/6124997.png" alt="Sello de Integridad" className="w-16 h-16 opacity-30 mix-blend-multiply" />
+                                <Image src="https://cdn-icons-png.flaticon.com/512/6124/6124997.png" alt="Sello de Integridad" width={64} height={64} className="w-16 h-16 opacity-30 mix-blend-multiply" unoptimized />
                             </div>
 
                             <div className="relative z-10">
@@ -488,35 +579,25 @@ export default function AuthorityPage() {
                                                                     Validar
                                                                 </button>
                                                                 {selectedDossierId === d.id ? (
-                                                                    <PDFDownloadLink
-                                                                        document={
-                                                                            <RetirementReport
-                                                                                clientName={userProfile.name}
-                                                                                input={d.input}
-                                                                                strategyName={d.name}
-                                                                                strategyResult={{
-                                                                                    pensionMensual: d.result.netPension || d.result.net_pension || d.result.pensionMensual || 0,
-                                                                                    totalInversion: d.result.investment || d.result.totalInversion || 0,
-                                                                                    roiMeses: d.result.roiMonths || d.result.roiMeses || 0
-                                                                                }}
-                                                                                projectionData={projectionForPdf}
-                                                                                bundle={{
-                                                                                    integrity_hash: d.hash,
-                                                                                    generated_at: new Date(d.createdAt).toISOString(),
-                                                                                    version: "1.0.0"
-                                                                                }}
-                                                                                certifiedDossier={null}
-                                                                                agencyProfile={session?.user}
-                                                                            />
-                                                                        }
+                                                                    <AuthorityRetirementPDFButton
+                                                                        clientName={userProfile.name}
+                                                                        input={d.input}
+                                                                        strategyName={d.name}
+                                                                        strategyResult={{
+                                                                            pensionMensual: d.result.netPension || d.result.net_pension || d.result.pensionMensual || 0,
+                                                                            totalInversion: d.result.investment || d.result.totalInversion || 0,
+                                                                            roiMeses: d.result.roiMonths || d.result.roiMeses || 0
+                                                                        }}
+                                                                        projectionData={projectionForPdf}
+                                                                        bundle={{
+                                                                            integrity_hash: d.hash,
+                                                                            generated_at: new Date(d.createdAt).toISOString(),
+                                                                            version: "1.0.0"
+                                                                        }}
+                                                                        agencyProfile={session?.user}
                                                                         fileName={`Certificado_${d.name.replace(/\s+/g, '_')}.pdf`}
-                                                                        className="px-3 py-1.5 text-xs font-bold text-white bg-indigo-600 border border-indigo-600 hover:bg-indigo-700 rounded-lg transition-colors shadow-sm flex items-center gap-1.5"
-                                                                        onClick={(e) => e.stopPropagation()}
-                                                                    >
-                                                                        {({ loading }) => (
-                                                                            loading ? <Scale size={14} className="animate-spin" /> : <><Download size={14} /> PDF Listo</>
-                                                                        )}
-                                                                    </PDFDownloadLink>
+                                                                        onClick={(e: any) => e.stopPropagation()}
+                                                                    />
                                                                 ) : (
                                                                     <button
                                                                         onClick={(e) => {

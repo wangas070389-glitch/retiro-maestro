@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState } from 'react';
 import { signIn } from 'next-auth/react';
@@ -113,7 +113,7 @@ export default function LoginPage() {
                                         autoComplete="current-password"
                                         required
                                         className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all placeholder-slate-400"
-                                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                                        placeholder="••••••••"
                                     />
                                 </div>
 
@@ -142,8 +142,8 @@ export default function LoginPage() {
                 {/* Footer Minimal */}
                 <footer className="w-full py-8 text-center text-sm text-slate-500 relative z-20">
                     <div className="flex justify-center gap-6">
-                        <Link href="#" className="hover:text-indigo-600 transition-colors">Aviso de Privacidad</Link>
-                        <Link href="#" className="hover:text-indigo-600 transition-colors">Términos de Servicio</Link>
+                        <Link href="/privacidad" className="hover:text-indigo-600 transition-colors">Aviso de Privacidad</Link>
+                        <Link href="/terminos" className="hover:text-indigo-600 transition-colors">Términos de Servicio</Link>
                     </div>
                 </footer>
             </div>

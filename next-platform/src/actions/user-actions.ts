@@ -16,14 +16,27 @@ async function verifySelf() {
 
 const ProfileInfoSchema = z.object({
     name: z.string().min(2, "El nombre debe tener al menos 2 caracteres"),
-    email: z.string().email("Correo electrónico inválido")
+    email: z.string().email("Correo electrónico inválido"),
+    nss: z.string().optional().refine(val => !val || /^\d{11}$/.test(val), {
+        message: "El NSS debe tener exactamente 11 dígitos"
+    }),
+    birthDate: z.string().optional(),
+    isWorking: z.boolean().optional(),
+    lastBajaDate: z.string().optional()
 });
 
-export async function updateProfileInfoAction(name: string, email: string) {
+export async function updateProfileInfoAction(
+    name: string, 
+    email: string, 
+    nss?: string, 
+    birthDate?: string, 
+    isWorking?: boolean, 
+    lastBajaDate?: string
+) {
     try {
         const user = await verifySelf();
 
-        const parseResult = ProfileInfoSchema.safeParse({ name, email });
+        const parseResult = ProfileInfoSchema.safeParse({ name, email, nss, birthDate, isWorking, lastBajaDate });
         if (!parseResult.success) {
             throw new Error(parseResult.error.errors[0].message);
         }
@@ -36,15 +49,33 @@ export async function updateProfileInfoAction(name: string, email: string) {
             }
         }
 
+        const updateData: any = { name, email };
+        if (nss !== undefined) updateData.nss = nss || null;
+        if (birthDate !== undefined) updateData.birthDate = birthDate ? new Date(birthDate) : null;
+        if (isWorking !== undefined) updateData.isWorking = !!isWorking;
+        if (lastBajaDate !== undefined) {
+            updateData.lastBajaDate = (!isWorking && lastBajaDate) ? new Date(lastBajaDate) : null;
+        }
+
         const updated = await db.user.update({
             where: { id: user.id },
-            data: { name, email }
-        });
+            data: updateData
+        }) as any;
 
         // Optional: Log audit
         console.warn(`[AUDIT] Usuario ${user.id} actualizó su perfil (Nombre: ${name}, Email: ${email})`);
 
-        return { success: true, user: { name: updated.name, email: updated.email } };
+        return { 
+            success: true, 
+            user: { 
+                name: updated.name, 
+                email: updated.email,
+                nss: updated.nss,
+                birthDate: updated.birthDate ? updated.birthDate.toISOString().split('T')[0] : null,
+                isWorking: updated.isWorking,
+                lastBajaDate: updated.lastBajaDate ? updated.lastBajaDate.toISOString().split('T')[0] : null
+            } 
+        };
     } catch (error: unknown) {
         return { success: false, error: error instanceof Error ? error.message : "Failed to update profile information" };
     }

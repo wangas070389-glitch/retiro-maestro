@@ -29,7 +29,12 @@ export function OperationTab({ session, updateSession }: OperationTabProps) {
         const res = await updateGeoConfigAction(operationState, remoteReady);
         if (res.success && res.user) {
             showToast("Matriz Geográfica actualizada exitosamente", "success");
-            await updateSession();
+            await updateSession({
+                user: {
+                    operationState: res.user.operationState,
+                    remoteReady: res.user.remoteReady
+                }
+            });
         } else {
             showToast(res.error || "Error desconocido", "error");
         }

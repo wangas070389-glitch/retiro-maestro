@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useSession, signOut } from 'next-auth/react';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     LayoutDashboard,
@@ -16,7 +16,8 @@ import {
     Settings,
     ShieldCheck,
     Users,
-    History as HistoryIcon
+    History as HistoryIcon,
+    Calculator
 } from 'lucide-react';
 import { DocumentUploader } from '../ingestion/DocumentUploader';
 import { TierBadge } from '../ui/TierBadge';
@@ -26,9 +27,19 @@ export function Sidebar() {
     const { data: session } = useSession();
     const [isMobileOpen, setIsMobileOpen] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
+    const [clientId, setClientId] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            const params = new URLSearchParams(window.location.search);
+            setClientId(params.get('clientId'));
+        }
+    }, [pathname]);
 
     const navigation = [
-        { name: 'Simulador', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Tablero', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'Simulador', href: '/dashboard/simulator', icon: Calculator },
+        { name: 'Estudios Guardados', href: '/simulations', icon: HistoryIcon },
         { name: 'Expediente Legal', href: '/authority', icon: Scale },
         { name: 'Mi Perfil', href: '/profile', icon: User },
     ];
@@ -61,7 +72,7 @@ export function Sidebar() {
                     return (
                         <Link
                             key={item.name}
-                            href={item.href}
+                            href={clientId ? `${item.href}?clientId=${clientId}` : item.href}
                             onClick={() => setIsMobileOpen(false)}
                             className={`
                                 flex items-center gap-3 px-4 py-3 rounded-xl transition-all group relative overflow-hidden
@@ -191,7 +202,7 @@ export function Sidebar() {
                             return (
                                 <Link
                                     key={item.name}
-                                    href={item.href}
+                                    href={clientId ? `${item.href}?clientId=${clientId}` : item.href}
                                     title={!isHovered ? item.name : undefined}
                                     className={`
                                         flex items-center gap-3 rounded-xl transition-all group relative overflow-hidden

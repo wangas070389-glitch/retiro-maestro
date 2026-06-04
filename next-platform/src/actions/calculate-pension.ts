@@ -3,6 +3,7 @@
 import { z } from 'zod';
 import { PensionEngine, PensionInput } from '../lib/engine/pension-engine';
 import { VigenciaGuard } from '../lib/engine/vigencia-guard';
+import { PersonaClassifier, PersonaGroupInfo } from '../lib/engine/persona-classifier';
 import { db } from '../lib/db';
 import { auth } from '../auth';
 import { assertTrialAccess } from '../lib/trial-guard';
@@ -19,9 +20,9 @@ const PensionSchema = z.object({
     salary_prom: z.number().min(0, "Salary cannot be negative"),
     age: z.number().min(18).max(100),
     retirement_age: z.number().min(60).max(100).optional(),
-    has_wife: z.boolean(),
-    children_count: z.number().min(0).max(10),
-    dependent_parents_count: z.number().min(0).max(2),
+    has_wife: z.boolean().default(false),
+    children_count: z.number().min(0).max(10).default(0),
+    dependent_parents_count: z.number().min(0).max(2).default(0),
     anchor_salary: z.number().optional(),
     inflation_percentage: z.number().min(0).max(1000).optional(),
     is_ongoing_work: z.boolean().optional(),
@@ -42,6 +43,7 @@ export type ValidationResult =
         data: ReturnType<PensionEngine['calculate']>; 
         vigenciaAlert?: string;
         recommendations?: ExecutiveRecommendation[]; 
+        personaGroup?: PersonaGroupInfo;
       }
     | { success: false; error: string; needsRecovery?: boolean };
 
@@ -54,22 +56,24 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
         const userRole = (session.user as any).role as Role || 'USER';
         const userTier = (session.user as any).tier as Tier || 'FREE';
 
+        let userBirthDate: any = null;
         if (userId) {
             const user = await db.user.findUnique({
                 where: { id: userId },
-                select: { role: true, tier: true, createdAt: true, trialSimulationsUsed: true } as any,
-            });
+                select: { role: true, tier: true, createdAt: true, trialSimulationsUsed: true, birthDate: true } as any,
+            }) as any;
             if (user) {
-                assertTrialAccess(user as any);
+                assertTrialAccess(user);
+                userBirthDate = user.birthDate;
             }
         }
 
-        let rawInput: unknown = formData;
+        let rawInput: any = formData;
         if (formData instanceof FormData) {
             rawInput = {
                 weeks: Number(formData.get('weeks')),
                 salary_prom: Number(formData.get('salary_prom')),
-                age: Number(formData.get('age')),
+                age: formData.get('age') ? Number(formData.get('age')) : undefined,
                 retirement_age: formData.get('retirement_age') ? Number(formData.get('retirement_age')) : undefined,
                 has_wife: formData.get('has_wife') === 'true' || formData.get('has_wife') === 'on',
                 children_count: Number(formData.get('children_count') || 0),
@@ -77,7 +81,14 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
                 inflation_percentage: Number(formData.get('inflation_percentage') || 0),
                 is_ongoing_work: formData.get('is_ongoing_work') === 'true' || formData.get('is_ongoing_work') === 'on',
                 last_termination_date: formData.get('last_termination_date') ? String(formData.get('last_termination_date')) : undefined
-            }
+            };
+        } else if (rawInput && typeof rawInput === 'object') {
+            rawInput = { ...rawInput };
+        }
+
+        if (userBirthDate && rawInput && typeof rawInput === 'object' && (!rawInput.age || isNaN(Number(rawInput.age)))) {
+            const exactAge = (new Date().getTime() - new Date(userBirthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+            rawInput.age = exactAge;
         }
 
         const validatedFields = PensionSchema.safeParse(rawInput);
@@ -111,6 +122,13 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
 
         const result = engine.calculate(calcInput as PensionInput);
 
+        const personaGroup = PersonaClassifier.classify(
+            validatedFields.data.age,
+            validatedFields.data.is_ongoing_work !== false,
+            validatedFields.data.weeks,
+            validatedFields.data.last_termination_date
+        );
+
         // Feature Gated Recommendations (Phase 3 Refactor)
         let recommendations: ExecutiveRecommendation[] | undefined = undefined;
         if (checkUserAccess(userRole, userTier, 'roiOptimizer')) {
@@ -118,7 +136,7 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
             recommendations = optimizer.optimize(calcInput as PensionInput, validatedFields.data.age);
         }
 
-        return { success: true, data: result, vigenciaAlert, recommendations };
+        return { success: true, data: result, vigenciaAlert, recommendations, personaGroup };
 
     } catch (error) {
         console.error("Calculation Error:", error);

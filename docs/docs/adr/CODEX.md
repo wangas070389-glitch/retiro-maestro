@@ -36,6 +36,7 @@ Registry of critical architectural decisions that govern the development and evo
 | **ADR-032** | [ADR-032.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/adr/ADR-032.md) | **ACTIVE** | 3-Zone Semantic Architecture for Authority View. |
 | **ADR-034** | [ADR-034.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/docs/adr/ADR-034.md) | **ACTIVE** | B2B2C Advisor CRM Mapping. |
 | **ADR-035** | [ADR-035.md](file:///c:/Users/z003puwx/Desktop/Antigravity_Projects/retiro-maestro/.agents/docs/adr/ADR-035.md) | **ACTIVE** | Free Trial Sovereignty & Limits. |
+| **ADR-037** | [ADR-037.md](file:///c:/Users/wanga/OneDrive/Escritorio/Antigravity-projects/retiro_maestro/docs/docs/adr/ADR-037.md) | **ACTIVE** | Dynamic User Persona Classification and Delegated Advisor Operations. |
 
 ## Metadata
 - **Domain**: Architecture Governance

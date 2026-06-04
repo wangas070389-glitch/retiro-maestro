@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { PDFDownloadLink } from '@react-pdf/renderer';
 import { Download } from 'lucide-react';
 import { DossierPDFDocument } from './DossierPDFDocument';
@@ -13,6 +14,24 @@ interface PDFTriggerProps {
 }
 
 export function PDFDownloadTrigger({ agency, client, vigenciaStatus, scenarios, dictamenHtml }: PDFTriggerProps) {
+    const [isMounted, setIsMounted] = useState(false);
+
+    useEffect(() => {
+        setIsMounted(true);
+    }, []);
+
+    if (!isMounted) {
+        return (
+            <button 
+                disabled={true}
+                className="flex items-center gap-2 px-6 py-3 bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 font-bold text-sm rounded-xl hover:bg-slate-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+                <Download size={16} />
+                Cargando PDF...
+            </button>
+        );
+    }
+
     return (
         <PDFDownloadLink
             document={

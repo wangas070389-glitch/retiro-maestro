@@ -11,6 +11,7 @@ import { UserPlus, ArrowRight, ShieldCheck } from 'lucide-react';
 export default function RegisterPage() {
     const [loading, setLoading] = useState(false);
     const [role, setRole] = useState('USER');
+    const [isWorking, setIsWorking] = useState(true);
     const router = useRouter();
     const { showToast } = useToast();
 
@@ -140,7 +141,7 @@ export default function RegisterPage() {
                                         autoComplete="new-password"
                                         required
                                         className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder-slate-400"
-                                        placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                                        placeholder="••••••••"
                                     />
                                     <p className="text-xs text-slate-500 mt-2 flex items-center gap-1">
                                         <ShieldCheck className="w-3 h-3 text-emerald-500" />
@@ -204,6 +205,69 @@ export default function RegisterPage() {
                                             </select>
                                         </div>
 
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                            <div>
+                                                <label htmlFor="nss" className="block text-sm font-bold text-slate-700 mb-2">
+                                                    NSS (11 dígitos, Opcional)
+                                                </label>
+                                                <input
+                                                    id="nss"
+                                                    name="nss"
+                                                    type="text"
+                                                    pattern="\d{11}"
+                                                    title="El NSS debe tener exactamente 11 dígitos"
+                                                    className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all placeholder-slate-400"
+                                                    placeholder="12345678901"
+                                                />
+                                            </div>
+
+                                            <div>
+                                                <label htmlFor="birthDate" className="block text-sm font-bold text-slate-700 mb-2">
+                                                    Fecha de Nacimiento
+                                                </label>
+                                                <input
+                                                    id="birthDate"
+                                                    name="birthDate"
+                                                    type="date"
+                                                    required={role === 'USER'}
+                                                    className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                                />
+                                            </div>
+                                        </div>
+
+                                        <div>
+                                            <label htmlFor="isWorking" className="block text-sm font-bold text-slate-700 mb-2">
+                                                ¿Te encuentras cotizando formalmente en el IMSS actualmente?
+                                            </label>
+                                            <select
+                                                id="isWorking"
+                                                name="isWorking"
+                                                required
+                                                value={isWorking ? 'true' : 'false'}
+                                                onChange={(e) => setIsWorking(e.target.value === 'true')}
+                                                className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                            >
+                                                <option value="true">Sí, cotizando actualmente</option>
+                                                <option value="false">No, actualmente dado de baja</option>
+                                            </select>
+                                        </div>
+
+                                        {!isWorking && (
+                                            <div className="animate-in fade-in slide-in-from-top-2">
+                                                <label htmlFor="lastBajaDate" className="block text-sm font-bold text-slate-700 mb-2">
+                                                    Fecha de Última Baja
+                                                </label>
+                                                <input
+                                                    id="lastBajaDate"
+                                                    name="lastBajaDate"
+                                                    type="date"
+                                                    required={!isWorking}
+                                                    className="appearance-none block w-full px-4 py-3 border border-slate-300 rounded-xl bg-slate-50 text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition-all"
+                                                />
+                                                <p className="text-xs text-slate-500 mt-1">Requerido para el cálculo de tu conservación de derechos (Vigencia).</p>
+                                            </div>
+                                        )}
+
                                         <div>
                                             <label htmlFor="advisorCode" className="block text-sm font-bold text-slate-700 mb-2">
                                                 Código de Asesor (Opcional)
@@ -247,8 +311,8 @@ export default function RegisterPage() {
                 {/* Footer Minimal */}
                 <footer className="w-full py-8 text-center text-sm text-slate-500 relative z-20">
                     <div className="flex justify-center gap-6">
-                        <Link href="#" className="hover:text-indigo-600 transition-colors">Aviso de Privacidad</Link>
-                        <Link href="#" className="hover:text-indigo-600 transition-colors">Términos de Servicio</Link>
+                        <Link href="/privacidad" className="hover:text-indigo-600 transition-colors">Aviso de Privacidad</Link>
+                        <Link href="/terminos" className="hover:text-indigo-600 transition-colors">Términos de Servicio</Link>
                     </div>
                 </footer>
             </div>

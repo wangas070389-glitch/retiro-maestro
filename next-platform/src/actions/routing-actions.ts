@@ -164,19 +164,33 @@ export async function claimLeadAction(leadId: string) {
  */
 export async function checkLeadStatusAction() {
     try {
+        await evaluateAuctionMatrix();
         const session = await auth();
         if (!session?.user?.id) return { success: false };
 
         const user = await db.user.findUnique({
             where: { id: session.user.id },
-            select: { leadStatus: true, residencyState: true, advisor: { select: { name: true, agencyName: true } } } as any
+            select: { 
+                leadStatus: true, 
+                residencyState: true, 
+                advisor: { 
+                    select: { 
+                        name: true, 
+                        email: true, 
+                        agencyName: true, 
+                        agencyPhone: true 
+                    } 
+                } 
+            } as any
         }) as any;
 
         return { 
             success: true, 
             status: user.leadStatus, 
             state: user.residencyState,
-            advisorName: user.advisor?.agencyName || user.advisor?.name || null
+            advisorName: user.advisor?.agencyName || user.advisor?.name || null,
+            advisorPhone: user.advisor?.agencyPhone || null,
+            advisorEmail: user.advisor?.email || null
         };
     } catch (e) {
         return { success: false };

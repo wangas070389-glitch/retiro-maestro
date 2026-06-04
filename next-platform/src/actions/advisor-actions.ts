@@ -87,7 +87,10 @@ export async function fetchAssignedClientsAction() {
                 email: c.email,
                 tier: (c as any).tier || "CLIENT", // B2B clients don't have systemic tiers yet
                 createdAt: c.createdAt,
-                isLead: false
+                isLead: false,
+                activeStrategy: (c as any).activeStrategy || null,
+                m40PaymentsState: (c as any).m40PaymentsState || null,
+                simulationsCount: c.simulations?.length || 0
             })),
             ...assignedLeads.map(u => ({
                 id: u.id,
@@ -95,7 +98,10 @@ export async function fetchAssignedClientsAction() {
                 email: u.email,
                 tier: u.tier,
                 createdAt: u.createdAt,
-                isLead: true
+                isLead: true,
+                activeStrategy: (u as any).activeStrategy || null,
+                m40PaymentsState: (u as any).m40PaymentsState || null,
+                simulationsCount: u.simulations?.length || 0
             }))
         ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
 
@@ -120,24 +126,74 @@ export async function fetchMarketLeadsAction() {
     }
 
     try {
-        // Fetch users who are candidates for routing (PENDING_LOCAL or PENDING_NATIONAL)
-        // and are not currently claimed.
-        const leads = await db.user.findMany({
-            where: {
+        // 1. Evaluate auction matrix dynamically to spill over any expired SLAs
+        const { evaluateAuctionMatrix } = await import('./routing-actions');
+        await evaluateAuctionMatrix();
+
+        // 2. Fetch current advisor's configuration
+        const advisor = await db.user.findUnique({
+            where: { id: userId }
+        }) as any;
+
+        if (!advisor) {
+            return { success: false, error: "Asesor no encontrado." };
+        }
+
+        let whereClause: any = {};
+
+        if (userRole === 'ADMIN') {
+            // Admins can see all pending leads (internal, local, national)
+            whereClause = {
+                role: 'USER',
                 OR: [
+                    { leadStatus: "PENDING_INTERNAL" },
                     { leadStatus: "PENDING_LOCAL" },
                     { leadStatus: "PENDING_NATIONAL" }
                 ],
                 advisorId: null,
                 isBlocked: false
-            } as any,
+            };
+        } else {
+            // Regular advisors see:
+            // - PENDING_LOCAL where residencyState matches their operationState
+            // - PENDING_NATIONAL only if they are remoteReady
+            const orConditions: any[] = [];
+
+            if (advisor.operationState) {
+                orConditions.push({
+                    leadStatus: "PENDING_LOCAL",
+                    residencyState: advisor.operationState
+                });
+            }
+
+            if (advisor.remoteReady) {
+                orConditions.push({
+                    leadStatus: "PENDING_NATIONAL"
+                });
+            }
+
+            if (orConditions.length === 0) {
+                // If they haven't set operationState and aren't remoteReady, they see nothing
+                return { success: true, leads: [] };
+            }
+
+            whereClause = {
+                role: 'USER',
+                OR: orConditions,
+                advisorId: null,
+                isBlocked: false
+            };
+        }
+
+        const leads = await db.user.findMany({
+            where: whereClause,
             select: {
                 id: true,
                 name: true,
                 residencyState: true,
                 leadStatus: true,
                 createdAt: true
-            } as any,
+            },
             orderBy: { createdAt: 'desc' }
         });
 
