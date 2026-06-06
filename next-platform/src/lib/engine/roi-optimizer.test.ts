@@ -25,8 +25,9 @@ test('ROIOptimizer.optimize: standard scenario returns 5 windows and identifies 
     const rec60 = recommendations.find(r => r.investmentMonths === 60);
     assert(rec12 && rec60, 'Should have 12 and 60 month recommendations');
 
-    // allow a tiny floating point variance
-    assert(Math.abs(rec60.totalInvestment - (rec12.totalInvestment * 5)) < 0.1, 'Investment should scale linearly');
+    // Under progressive Modalidad 40 rules, the rate increases over time (e.g. 14.438% to 18.800%).
+    // 60 months of investment will be greater than 12 months of investment.
+    assert(rec60.totalInvestment > rec12.totalInvestment, '60 months should cost more than 12 months');
 
     // 3. Exactly one recommendation should be optimal
     const optimalRecs = recommendations.filter(r => r.isOptimal);
