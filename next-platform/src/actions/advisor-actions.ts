@@ -158,7 +158,10 @@ export async function updateActuarialDataAction(
     data: { age?: number, currentWeeks?: number, avgSalary?: number, lastBajaDate?: string | null }
 ) {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "No autorizado." };
+    const userId = session?.user?.id;
+    const userRole = (session?.user as any)?.role as Role;
+
+    if (!userId) return { success: false, error: "No autorizado." };
 
     try {
         const updateData = {
@@ -168,16 +171,30 @@ export async function updateActuarialDataAction(
             lastBajaDate: data.lastBajaDate ? new Date(data.lastBajaDate) : null,
         };
 
-        if (isLead) {
-            await (db.user as any).update({
-                where: { id },
-                data: updateData
-            });
+        if (userRole === "ADMIN") {
+            if (isLead) {
+                await (db.user as any).update({ where: { id }, data: updateData });
+            } else {
+                await (db.client as any).update({ where: { id }, data: updateData });
+            }
         } else {
-            await (db.client as any).update({
-                where: { id },
-                data: updateData
-            });
+            let result;
+            if (isLead) {
+                result = await (db.user as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            } else {
+                result = await (db.client as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            }
+
+            if (result.count === 0) {
+                console.warn(`[SECURITY_AUDIT_VIOLATION] Unauthorized mutation attempt on record ID: ${id} by advisor ID: ${userId}`);
+                return { success: false, error: "Operation failed or record unauthorized." };
+            }
         }
 
         revalidatePath('/portfolio');
@@ -185,7 +202,7 @@ export async function updateActuarialDataAction(
         return { success: true };
     } catch (error) {
         console.error("Update Actuarial Error:", error);
-        return { success: false, error: "Error al actualizar los datos actuariales." };
+        return { success: false, error: "An unexpected system exception occurred." };
     }
 }
 
@@ -203,7 +220,10 @@ export async function updateClientCRMAction(
     }
 ) {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "No autorizado." };
+    const userId = session?.user?.id;
+    const userRole = (session?.user as any)?.role as Role;
+
+    if (!userId) return { success: false, error: "No autorizado." };
 
     try {
         const updateData: any = {
@@ -213,17 +233,37 @@ export async function updateClientCRMAction(
             notes: data.notes
         };
 
-        if (isLead) {
-            await (db.user as any).update({ where: { id }, data: updateData });
+        if (userRole === "ADMIN") {
+            if (isLead) {
+                await (db.user as any).update({ where: { id }, data: updateData });
+            } else {
+                await (db.client as any).update({ where: { id }, data: updateData });
+            }
         } else {
-            await (db.client as any).update({ where: { id }, data: updateData });
+            let result;
+            if (isLead) {
+                result = await (db.user as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            } else {
+                result = await (db.client as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            }
+
+            if (result.count === 0) {
+                console.warn(`[SECURITY_AUDIT_VIOLATION] Unauthorized mutation attempt on record ID: ${id} by advisor ID: ${userId}`);
+                return { success: false, error: "Operation failed or record unauthorized." };
+            }
         }
 
         revalidatePath(`/portfolio/client/${id}/workspace`);
         return { success: true };
     } catch (error) {
         console.error("Update CRM Error:", error);
-        return { success: false, error: "Error al actualizar la gestión del cliente." };
+        return { success: false, error: "An unexpected system exception occurred." };
     }
 }
 
@@ -237,7 +277,10 @@ export async function selectClientStrategyAction(
     narrative?: string
 ) {
     const session = await auth();
-    if (!session?.user?.id) return { success: false, error: "No autorizado." };
+    const userId = session?.user?.id;
+    const userRole = (session?.user as any)?.role as Role;
+
+    if (!userId) return { success: false, error: "No autorizado." };
 
     try {
         const updateData = {
@@ -245,16 +288,36 @@ export async function selectClientStrategyAction(
             closingNarrative: narrative
         };
 
-        if (isLead) {
-            await (db.user as any).update({ where: { id }, data: updateData });
+        if (userRole === "ADMIN") {
+            if (isLead) {
+                await (db.user as any).update({ where: { id }, data: updateData });
+            } else {
+                await (db.client as any).update({ where: { id }, data: updateData });
+            }
         } else {
-            await (db.client as any).update({ where: { id }, data: updateData });
+            let result;
+            if (isLead) {
+                result = await (db.user as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            } else {
+                result = await (db.client as any).updateMany({
+                    where: { id, advisorId: userId },
+                    data: updateData
+                });
+            }
+
+            if (result.count === 0) {
+                console.warn(`[SECURITY_AUDIT_VIOLATION] Unauthorized mutation attempt on record ID: ${id} by advisor ID: ${userId}`);
+                return { success: false, error: "Operation failed or record unauthorized." };
+            }
         }
 
         revalidatePath(`/portfolio/client/${id}/workspace`);
         return { success: true };
     } catch (error) {
         console.error("Select Strategy Error:", error);
-        return { success: false, error: "Error al seleccionar la estrategia." };
+        return { success: false, error: "An unexpected system exception occurred." };
     }
 }
