@@ -61,27 +61,28 @@ export class RetroCalculator {
         let totalWeightedSalary = 0;
         let daysCounter = 0;
         const TARGET_DAYS = 1750;
+        const ONE_DAY_MS = 86400000;
         let hasGaps = false;
 
-        // Iterate segments from latest to oldest
-        for (let i = segments.length - 1; i >= 0; i--) {
-            if (daysCounter >= TARGET_DAYS) break;
+        const nowTs = new Date().getTime();
 
+        // Iterate segments from latest to oldest
+        for (let i = segments.length - 1; i >= 0 && daysCounter < TARGET_DAYS; i--) {
             const seg = segments[i];
-            const start = seg.start;
-            const end = seg.end || new Date(); // If null, assume active/vigente
+            const startTs = seg.start.getTime();
+            const endTs = seg.end ? seg.end.getTime() : nowTs; // If null, assume active/vigente
 
             // Detect gap between this segment's end and next segment's start (already processed)
             if (i < segments.length - 1) {
                 const nextSeg = segments[i + 1];
-                const gapMs = nextSeg.start.getTime() - (seg.end?.getTime() || 0);
-                if (gapMs > 86400000) { // > 1 day
+                const gapMs = nextSeg.start.getTime() - (seg.end ? seg.end.getTime() : 0);
+                if (gapMs > ONE_DAY_MS) { // > 1 day
                     hasGaps = true;
                 }
             }
 
-            const diffMs = end.getTime() - start.getTime();
-            const segDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const diffMs = endTs - startTs;
+            const segDays = Math.ceil(diffMs / ONE_DAY_MS);
             
             if (segDays <= 0) continue;
 
