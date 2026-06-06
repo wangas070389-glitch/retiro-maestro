@@ -82,6 +82,7 @@ function DashboardContent() {
     const [clientSearch, setClientSearch] = useState('');
     const [isClaiming, setIsClaiming] = useState<string | null>(null);
     const [actionUserLoading, setActionUserLoading] = useState<string | null>(null);
+    const [adminViewMode, setAdminViewMode] = useState<'ADMIN' | 'ADVISOR'>('ADMIN');
 
     const userRole = (session?.user as any)?.role as Role || 'USER';
     const userTier = (session?.user as any)?.tier as Tier || 'FREE';
@@ -291,7 +292,7 @@ function DashboardContent() {
     // ==========================================
     // VIEW ROLE: ADVISOR Dashboard (No client ID)
     // ==========================================
-    if (userRole === 'ADVISOR' && !clientId) {
+    if ((userRole === 'ADVISOR' || (userRole === 'ADMIN' && adminViewMode === 'ADVISOR')) && !clientId) {
         const filteredClients = assignedClients.filter(c => 
             c.name.toLowerCase().includes(clientSearch.toLowerCase()) ||
             (c.email && c.email.toLowerCase().includes(clientSearch.toLowerCase()))
@@ -305,9 +306,36 @@ function DashboardContent() {
                         <Users size={180} />
                     </div>
                     <div className="relative z-10 space-y-2.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">
-                            Consola del Asesor Actuarial
-                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30 w-fit">
+                                Consola del Asesor Actuarial
+                            </span>
+                            
+                            {userRole === 'ADMIN' && (
+                                <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-inner">
+                                    <button
+                                        onClick={() => setAdminViewMode('ADMIN')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                            adminViewMode === 'ADMIN'
+                                                ? 'bg-white text-slate-950 shadow-md scale-100'
+                                                : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    >
+                                        <Settings size={14} /> Administrador
+                                    </button>
+                                    <button
+                                        onClick={() => setAdminViewMode('ADVISOR')}
+                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                            adminViewMode === 'ADVISOR'
+                                                ? 'bg-white text-slate-950 shadow-md scale-100'
+                                                : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                                        }`}
+                                    >
+                                        <Briefcase size={14} /> Asesor
+                                    </button>
+                                </div>
+                            )}
+                        </div>
                         <h1 className="text-2xl md:text-3xl font-light tracking-tight">
                             Bienvenido, <strong className="font-bold text-white">{session?.user?.name}</strong>
                         </h1>
@@ -511,7 +539,7 @@ function DashboardContent() {
     // ========================================
     // VIEW ROLE: ADMIN Dashboard (No client ID)
     // ========================================
-    if (userRole === 'ADMIN' && !clientId) {
+    if (userRole === 'ADMIN' && !clientId && adminViewMode === 'ADMIN') {
         return (
             <div className="p-4 md:p-8 space-y-6 max-w-7xl mx-auto animate-in fade-in duration-500">
                 {/* Admin Welcome Header */}
@@ -520,9 +548,34 @@ function DashboardContent() {
                         <Settings size={200} />
                     </div>
                     <div className="relative z-10 space-y-2.5">
-                        <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30">
-                            Panel de Administración del Sistema
-                        </span>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                            <span className="text-[9px] font-black uppercase tracking-widest text-indigo-300 bg-indigo-500/20 px-3 py-1 rounded-full border border-indigo-500/30 w-fit">
+                                Panel de Administración del Sistema
+                            </span>
+                            
+                            <div className="flex items-center gap-1 bg-white/10 backdrop-blur-md p-1 rounded-xl border border-white/10 shadow-inner">
+                                <button
+                                    onClick={() => setAdminViewMode('ADMIN')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                        adminViewMode === 'ADMIN'
+                                            ? 'bg-white text-slate-950 shadow-md scale-100'
+                                            : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <Settings size={14} /> Administrador
+                                </button>
+                                <button
+                                    onClick={() => setAdminViewMode('ADVISOR')}
+                                    className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
+                                        adminViewMode === 'ADVISOR'
+                                            ? 'bg-white text-slate-950 shadow-md scale-100'
+                                            : 'text-slate-200 hover:bg-white/10 hover:text-white'
+                                    }`}
+                                >
+                                    <Briefcase size={14} /> Asesor
+                                </button>
+                            </div>
+                        </div>
                         <h1 className="text-2xl md:text-3xl font-light tracking-tight">
                             Consola Root: <strong className="font-bold text-white">{session?.user?.name}</strong>
                         </h1>
