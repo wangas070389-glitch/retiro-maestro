@@ -19,7 +19,11 @@ export async function triggerInitialRouting() {
 
         const user = await db.user.findUnique({
             where: { id: session.user.id }
-        }) as any;
+        });
+
+        if (!user) {
+            return { success: false, error: "[ROUTING_TRANSACTION_ABORTED] Target user record not present in active schema." };
+        }
 
         // Only raw users with no Advisor
         if (user.role !== 'USER' || user.advisorId || user.leadStatus !== 'NONE') {
@@ -35,7 +39,7 @@ export async function triggerInitialRouting() {
             data: {
                 leadStatus: "PENDING_INTERNAL",
                 slaExpiresAt: slaTarget
-            } as any
+            }
         });
 
         return { success: true };
@@ -101,7 +105,7 @@ export async function evaluateAuctionMatrix() {
 export async function claimLeadAction(leadId: string) {
     try {
         const session = await auth();
-        const userRole = (session?.user as any)?.role;
+        const userRole = session?.user?.role;
         if (!session?.user?.id || (userRole !== 'ADVISOR' && userRole !== 'ADMIN')) {
             throw new Error("Only Advisors or Admins can claim leads.");
         }
@@ -110,15 +114,23 @@ export async function claimLeadAction(leadId: string) {
             // Lock Record
             const lead = await tx.user.findUnique({
                 where: { id: leadId }
-            }) as any;
+            });
 
-            if (!lead || lead.leadStatus === 'CLAIMED' || lead.advisorId) {
+            if (!lead) {
+                return { success: false, error: "[ROUTING_TRANSACTION_ABORTED] Lead not found." };
+            }
+
+            if (lead.leadStatus === 'CLAIMED' || lead.advisorId) {
                 return { success: false, error: "El lead ya no está disponible." };
             }
 
             const advisor = await tx.user.findUnique({
                 where: { id: session.user.id }
-            }) as any;
+            });
+
+            if (!advisor) {
+                return { success: false, error: "[ROUTING_TRANSACTION_ABORTED] Advisor record not found." };
+            }
 
             // Paywall Guard (Deep Blue Phase - ADR-036)
             const professionalTiers = ['STARTER', 'GROWTH', 'PRO'];
@@ -147,7 +159,7 @@ export async function claimLeadAction(leadId: string) {
                     advisorId: advisor.id,
                     claimedById: advisor.id,
                     slaExpiresAt: null
-                } as any
+                }
             });
 
             console.warn(`[ROUTING ENGINE] Lead ${lead.id} CLAIMED by Advisor ${advisor.id}`);
@@ -181,8 +193,13 @@ export async function checkLeadStatusAction() {
                         agencyPhone: true 
                     } 
                 } 
-            } as any
-        }) as any;
+            }
+        });
+
+        if (!user) {
+            console.error(`[ROUTING_AUDIT_FAIL] Target user record ${session.user.id} not present in active schema.`);
+            return { success: false };
+        }
 
         return { 
             success: true, 
