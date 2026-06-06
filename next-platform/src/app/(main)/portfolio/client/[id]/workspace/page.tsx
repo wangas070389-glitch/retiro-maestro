@@ -18,22 +18,29 @@ export default async function WorkstationPage({ params }: { params: { id: string
 
     const userRole = (session?.user as any)?.role;
     
-    // 1. Universal Fetch (Try Lead Model first, then Manual Client model)
-    let client = await db.user.findFirst({
-        where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
-    }) as any;
+    const fetchStart = performance.now();
 
+    // 1. Parallel Fetch (Primary Lead Model + Advisor Profile)
+    const [userClient, advisor] = await Promise.all([
+        db.user.findFirst({
+            where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
+        }),
+        db.user.findUnique({
+            where: { id: session.user.id },
+            select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true }
+        })
+    ]);
+
+    // 1.5 Fallback to Manual Client model if primary not found
+    let client = userClient as any;
     if (!client) {
         client = await db.client.findFirst({
             where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
         });
     }
 
-    // 1.5 Fetch Advisor Data (For PDF Brand Ingestion)
-    const advisor = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true } as any
-    });
+    const fetchEnd = performance.now();
+    console.log(`[WORKSPACE_PERF_AUDIT] Execution time: ${(fetchEnd - fetchStart).toFixed(2)}ms`);
 
     if (!client) {
         return (
