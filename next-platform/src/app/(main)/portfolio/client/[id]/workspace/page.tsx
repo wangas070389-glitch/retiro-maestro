@@ -20,19 +20,42 @@ export default async function WorkstationPage({ params }: { params: { id: string
     
     const fetchStart = performance.now();
 
-    // 1. Parallel Fetch (Primary Lead Model + Advisor Profile)
+    // 1. Universal Fetch (Try Lead Model first, then Manual Client model)
+    // 1.5 Fetch Advisor Data (For PDF Brand Ingestion)
+    type PartialUser = {
+        id: string;
+        name: string | null;
+        email: string | null;
+        role: string;
+        currentWeeks: number | null;
+        avgSalary: number | null;
+        age: number | null;
+        lastBajaDate: Date | null;
+        isWorking: boolean;
+        activeStrategy: string | null;
+        m40PaymentsState: any;
+        currentStage: string;
+        notes: string | null;
+        selectedStrategyId: string | null;
+    };
+
+    type AdvisorData = {
+        agencyName: string | null;
+        agencyPhone: string | null;
+        agencyLogoUrl: string | null;
+    };
+
     const [userClient, advisor] = await Promise.all([
         db.user.findFirst({
             where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
-        }),
+        }) as unknown as PartialUser | null,
         db.user.findUnique({
             where: { id: session.user.id },
             select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true }
-        })
+        }) as unknown as AdvisorData | null
     ]);
 
-    // 1.5 Fallback to Manual Client model if primary not found
-    let client = userClient as any;
+    let client: any = userClient;
     if (!client) {
         client = await db.client.findFirst({
             where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
