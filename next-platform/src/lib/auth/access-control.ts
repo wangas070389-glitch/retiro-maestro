@@ -1,3 +1,4 @@
+import { cache } from 'react';
 import { db } from '../db';
 import { PRICING_CONFIG, Role, Tier, getPlan, PricingPlan } from '../config/pricing';
 import { subDays } from 'date-fns';
@@ -15,8 +16,13 @@ export function checkUserAccess(role: Role, tier: Tier, feature: keyof PricingPl
 /**
  * Counts "Active Clients" for an Advisor.
  * "Active" = client with at least one simulation in the last 30 days.
+ * Request-scoped memoization ensures strict isolation per request lifecycle.
  */
-export async function getActiveClientCount(advisorId: string): Promise<number> {
+export const getActiveClientCount = cache(async (advisorId: string): Promise<number> => {
+    if (!advisorId) {
+        throw new Error("[ACCESS_CONTROL_ERROR] Execution context lacks a valid identifier parameter.");
+    }
+
     const thirtyDaysAgo = subDays(new Date(), 30);
     
     // @ts-ignore - Prisma property 'client' generation sync issue
@@ -34,7 +40,7 @@ export async function getActiveClientCount(advisorId: string): Promise<number> {
     });
 
     return activeClients;
-}
+});
 
 /**
  * Enforces B2B Plan limits for client creation.
