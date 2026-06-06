@@ -8,6 +8,12 @@ import { auth } from "@/auth";
  * Executes the First-Right-of-Refusal Geo-Spatial logic for Lead Distribution.
  */
 
+/**
+ * Strict compile-time type guard matching the native
+ * database string configuration for tracking lead states.
+ */
+export type LeadStatusType = "NONE" | "PENDING_INTERNAL" | "PENDING_LOCAL" | "PENDING_NATIONAL" | "CLAIMED";
+
 // Global Config
 const SLA_INTERNAL_HOURS = 4;
 const SLA_LOCAL_HOURS = 24;
@@ -19,7 +25,9 @@ export async function triggerInitialRouting() {
 
         const user = await db.user.findUnique({
             where: { id: session.user.id }
-        }) as any;
+        });
+
+        if (!user) throw new Error("User not found");
 
         // Only raw users with no Advisor
         if (user.role !== 'USER' || user.advisorId || user.leadStatus !== 'NONE') {
@@ -33,9 +41,9 @@ export async function triggerInitialRouting() {
         await db.user.update({
             where: { id: user.id },
             data: {
-                leadStatus: "PENDING_INTERNAL",
+                leadStatus: "PENDING_INTERNAL" satisfies LeadStatusType,
                 slaExpiresAt: slaTarget
-            } as any
+            }
         });
 
         return { success: true };
@@ -110,7 +118,7 @@ export async function claimLeadAction(leadId: string) {
             // Lock Record
             const lead = await tx.user.findUnique({
                 where: { id: leadId }
-            }) as any;
+            });
 
             if (!lead || lead.leadStatus === 'CLAIMED' || lead.advisorId) {
                 return { success: false, error: "El lead ya no está disponible." };
@@ -118,7 +126,11 @@ export async function claimLeadAction(leadId: string) {
 
             const advisor = await tx.user.findUnique({
                 where: { id: session.user.id }
-            }) as any;
+            });
+
+            if (!advisor) {
+                throw new Error("Advisor not found.");
+            }
 
             // Paywall Guard (Deep Blue Phase - ADR-036)
             const professionalTiers = ['STARTER', 'GROWTH', 'PRO'];
@@ -143,11 +155,11 @@ export async function claimLeadAction(leadId: string) {
             await tx.user.update({
                 where: { id: lead.id },
                 data: {
-                    leadStatus: "CLAIMED",
+                    leadStatus: "CLAIMED" satisfies LeadStatusType,
                     advisorId: advisor.id,
                     claimedById: advisor.id,
                     slaExpiresAt: null
-                } as any
+                }
             });
 
             console.warn(`[ROUTING ENGINE] Lead ${lead.id} CLAIMED by Advisor ${advisor.id}`);
@@ -181,12 +193,14 @@ export async function checkLeadStatusAction() {
                         agencyPhone: true 
                     } 
                 } 
-            } as any
-        }) as any;
+            }
+        });
+
+        if (!user) return { success: false };
 
         return { 
             success: true, 
-            status: user.leadStatus, 
+            status: user.leadStatus as LeadStatusType,
             state: user.residencyState,
             advisorName: user.advisor?.agencyName || user.advisor?.name || null,
             advisorPhone: user.advisor?.agencyPhone || null,
