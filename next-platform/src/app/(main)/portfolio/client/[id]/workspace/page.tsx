@@ -18,24 +18,29 @@ export default async function WorkstationPage({ params }: { params: { id: string
 
     const userRole = (session?.user as any)?.role;
     
-    // 1. Universal Fetch (Try Lead Model first, then Manual Client model)
-    let client = await db.user.findFirst({
-        where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
-    }) as any;
+    const startTime = performance.now();
 
-    if (!client) {
-        client = await db.client.findFirst({
+    // 1. Parallelize primary user lookup and advisor details
+    const [userClient, advisor] = await Promise.all([
+        db.user.findFirst({
             where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
-        });
-    }
+        }) as any,
+        db.user.findUnique({
+            where: { id: session.user.id },
+            select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true } as any
+        })
+    ]);
 
-    // 1.5 Fetch Advisor Data (For PDF Brand Ingestion)
-    const advisor = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true } as any
-    });
+    // 2. Conditional lazy fallback for manual client model
+    let client = userClient || (await db.client.findFirst({
+        where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
+    }));
+
+    const endTime = performance.now();
+    console.log(`[WORKSPACE_PERF_AUDIT] Execution time: ${(endTime - startTime).toFixed(2)}ms`);
 
     if (!client) {
+        console.warn(`[WORKSPACE_AUDIT_WARNING] No valid client configuration found for ID: ${clientId}`);
         return (
             <div className="flex flex-col items-center justify-center h-screen space-y-4 text-center">
                 <ShieldAlert className="w-16 h-16 text-rose-500" />
