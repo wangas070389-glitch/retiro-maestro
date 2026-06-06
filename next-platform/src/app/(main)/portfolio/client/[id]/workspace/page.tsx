@@ -19,21 +19,46 @@ export default async function WorkstationPage({ params }: { params: { id: string
     const userRole = (session?.user as any)?.role;
     
     // 1. Universal Fetch (Try Lead Model first, then Manual Client model)
-    let client = await db.user.findFirst({
-        where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
-    }) as any;
+    // 1.5 Fetch Advisor Data (For PDF Brand Ingestion)
+    type PartialUser = {
+        id: string;
+        name: string | null;
+        email: string | null;
+        role: string;
+        currentWeeks: number | null;
+        avgSalary: number | null;
+        age: number | null;
+        lastBajaDate: Date | null;
+        isWorking: boolean;
+        activeStrategy: string | null;
+        m40PaymentsState: any;
+        currentStage: string;
+        notes: string | null;
+        selectedStrategyId: string | null;
+    };
 
+    type AdvisorData = {
+        agencyName: string | null;
+        agencyPhone: string | null;
+        agencyLogoUrl: string | null;
+    };
+
+    const [userClient, advisor] = await Promise.all([
+        db.user.findFirst({
+            where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
+        }) as unknown as PartialUser | null,
+        db.user.findUnique({
+            where: { id: session.user.id },
+            select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true }
+        }) as unknown as AdvisorData | null
+    ]);
+
+    let client: any = userClient;
     if (!client) {
         client = await db.client.findFirst({
             where: userRole === 'ADMIN' ? { id: clientId } : { id: clientId, advisorId: session.user.id }
         });
     }
-
-    // 1.5 Fetch Advisor Data (For PDF Brand Ingestion)
-    const advisor = await db.user.findUnique({
-        where: { id: session.user.id },
-        select: { agencyName: true, agencyPhone: true, agencyLogoUrl: true } as any
-    });
 
     if (!client) {
         return (
