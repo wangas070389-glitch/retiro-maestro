@@ -28,31 +28,32 @@ export class RetroCalculator {
             m.employer.includes('MODALIDAD 40')
         );
 
-        // 2. Build segments [start, end, wage]
-        const segments: { start: Date; end: Date | null; wage: number }[] = [];
+        // 2. Build segments [startMs, endMs, wage]
+        const segments: { startMs: number; endMs: number | null; wage: number }[] = [];
         for (let i = 0; i < sorted.length; i++) {
             const current = sorted[i];
             const startDate = new Date(current.date.split('/').reverse().join('-'));
+            const startMs = startDate.getTime();
             
             // If it's a BAJA, it marks the end of the previous period (if same employer) or just a stop.
             // In SISEC, BAJA rows often have the same wage but mark the termination date.
             
             if (current.type === 'BAJA') {
                 if (segments.length > 0) {
-                    segments[segments.length - 1].end = startDate;
+                    segments[segments.length - 1].endMs = startMs;
                 }
                 continue;
             }
 
             // For REINGRESO or MODIFICACION, start a new segment
             // Close previous segment if still open
-            if (segments.length > 0 && !segments[segments.length - 1].end) {
-                segments[segments.length - 1].end = startDate;
+            if (segments.length > 0 && !segments[segments.length - 1].endMs) {
+                segments[segments.length - 1].endMs = startMs;
             }
 
             segments.push({
-                start: startDate,
-                end: null, // Open until next movement or "current"
+                startMs: startMs,
+                endMs: null, // Open until next movement or "current"
                 wage: current.dailyWage
             });
         }
@@ -62,26 +63,25 @@ export class RetroCalculator {
         let daysCounter = 0;
         const TARGET_DAYS = 1750;
         let hasGaps = false;
+        const nowMs = Date.now();
 
         // Iterate segments from latest to oldest
-        for (let i = segments.length - 1; i >= 0; i--) {
-            if (daysCounter >= TARGET_DAYS) break;
-
+        for (let i = segments.length - 1; i >= 0 && daysCounter < TARGET_DAYS; i--) {
             const seg = segments[i];
-            const start = seg.start;
-            const end = seg.end || new Date(); // If null, assume active/vigente
+            const startMs = seg.startMs;
+            const endMs = seg.endMs || nowMs; // If null, assume active/vigente
 
             // Detect gap between this segment's end and next segment's start (already processed)
             if (i < segments.length - 1) {
                 const nextSeg = segments[i + 1];
-                const gapMs = nextSeg.start.getTime() - (seg.end?.getTime() || 0);
+                const gapMs = nextSeg.startMs - (seg.endMs || 0);
                 if (gapMs > 86400000) { // > 1 day
                     hasGaps = true;
                 }
             }
 
-            const diffMs = end.getTime() - start.getTime();
-            const segDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+            const diffMs = endMs - startMs;
+            const segDays = Math.ceil(diffMs / 86400000);
             
             if (segDays <= 0) continue;
 
