@@ -64,9 +64,7 @@ export class RetroCalculator {
         let hasGaps = false;
 
         // Iterate segments from latest to oldest
-        for (let i = segments.length - 1; i >= 0; i--) {
-            if (daysCounter >= TARGET_DAYS) break;
-
+        for (let i = segments.length - 1; i >= 0 && daysCounter < TARGET_DAYS; i--) {
             const seg = segments[i];
             const start = seg.start;
             const end = seg.end || new Date(); // If null, assume active/vigente
