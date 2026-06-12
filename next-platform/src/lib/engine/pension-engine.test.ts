@@ -110,3 +110,23 @@ test('PensionEngine: Ley 73 surplus semester rule rounding', () => {
     assert.strictEqual(resultUpMore.age_penalty, 80);
 });
 
+test('PensionEngine: weeks < 500 eligibility gate returns zeroed out pension', () => {
+    const engine = new PensionEngine();
+    const input: PensionInput = {
+        weeks: 100, // Below 500
+        salary_prom: 1000,
+        age: 65,
+        has_wife: true,
+        children_count: 0,
+        dependent_parents_count: 0,
+        anchor_salary: 100
+    };
+
+    const result = engine.calculate(input);
+
+    assert.strictEqual(result.net_pension, 0);
+    assert.strictEqual(result.with_decree_111, 0);
+    assert.strictEqual(result.total_monthly, 0);
+    assert.strictEqual(result.daily_base_cuantia, 0);
+});
+

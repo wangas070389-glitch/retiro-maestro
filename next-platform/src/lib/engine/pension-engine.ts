@@ -50,6 +50,33 @@ export class PensionEngine {
   public calculate(input: PensionInput): PensionResult {
     const { weeks, salary_prom, age, has_wife, children_count, dependent_parents_count, anchor_salary, anchor_smdf, days_per_month, inflation_percentage } = input;
 
+    // Minimum eligibility constraint (Art. 168 / 138 / 141 Ley 73):
+    // A minimum of 500 weeks is required to obtain any pension under Ley 73.
+    if (weeks < 500) {
+      return {
+        daily_base_cuantia: 0,
+        annual_base_cuantia: 0,
+        excess_years: 0,
+        annual_increment_total: 0,
+        adjusted_by_age: 0,
+        allowances: {
+          wife: 0,
+          children: 0,
+          parents: 0,
+          solitude: 0,
+          total_percentage: 0
+        },
+        total_annual: 0,
+        total_monthly: 0,
+        with_decree_111: 0,
+        with_inflation: 0,
+        age_penalty: 0,
+        capped_salary: 0,
+        tax_retained: 0,
+        net_pension: 0
+      };
+    }
+
     // 1. Calculate Salary Multiplier (n) with Legal Caps
     const effective_anchor = anchor_salary || legalData.uma_2026;
     const effective_smdf = anchor_smdf || legalData.smdf_2026;

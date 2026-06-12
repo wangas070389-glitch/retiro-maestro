@@ -10,7 +10,16 @@ async function main() {
     if (!seedPassword) {
         throw new Error("ERROR CRÍTICO: La variable de entorno SEED_USER_PASSWORD no está definida. Se requiere para sembrar credenciales seguras.");
     }
-    const hashedPassword = await bcrypt.hash(seedPassword, 10);
+
+    const adminPassword = process.env.SEED_ADMIN_PASSWORD || (seedPassword + "_admin");
+    const sovereignPassword = process.env.SEED_SOVEREIGN_PASSWORD || (seedPassword + "_sovereign");
+    const esencialPassword = process.env.SEED_ESENCIAL_PASSWORD || (seedPassword + "_esencial");
+    const maestroPassword = process.env.SEED_MAESTRO_PASSWORD || (seedPassword + "_maestro");
+
+    const hashedAdmin = await bcrypt.hash(adminPassword, 10);
+    const hashedSovereign = await bcrypt.hash(sovereignPassword, 10);
+    const hashedEsencial = await bcrypt.hash(esencialPassword, 10);
+    const hashedMaestro = await bcrypt.hash(maestroPassword, 10);
 
     // 1. Seed System Admins & Sovereign Roles
     const admin = await prisma.user.upsert({
@@ -19,12 +28,12 @@ async function main() {
             role: 'ADMIN',
             tier: 'SOVEREIGN',
             isApproved: true,
-            password: hashedPassword,
+            password: hashedAdmin,
         },
         create: {
             email: 'admin@retiromaestro.com',
             name: 'Admin User',
-            password: hashedPassword,
+            password: hashedAdmin,
             role: 'ADMIN',
             tier: 'SOVEREIGN',
             isApproved: true,
@@ -35,12 +44,12 @@ async function main() {
         where: { email: 'sovereign@retiromaestro.com' },
         update: {
             isApproved: true,
-            password: hashedPassword,
+            password: hashedSovereign,
         },
         create: {
             email: 'sovereign@retiromaestro.com',
             name: 'Sovereign Citizen',
-            password: hashedPassword,
+            password: hashedSovereign,
             isApproved: true,
         }
     });
@@ -52,7 +61,7 @@ async function main() {
             tier: 'ESENCIAL',
             role: 'USER',
             isApproved: true,
-            password: hashedPassword
+            password: hashedEsencial
         },
         create: {
             email: 'esencial@retiromaestro.com',
@@ -60,7 +69,7 @@ async function main() {
             tier: 'ESENCIAL',
             role: 'USER',
             isApproved: true,
-            password: hashedPassword
+            password: hashedEsencial
         }
     });
 
@@ -70,7 +79,7 @@ async function main() {
             tier: 'MAESTRO',
             role: 'USER',
             isApproved: true,
-            password: hashedPassword
+            password: hashedMaestro
         },
         create: {
             email: 'maestro@retiromaestro.com',
@@ -78,7 +87,7 @@ async function main() {
             tier: 'MAESTRO',
             role: 'USER',
             isApproved: true,
-            password: hashedPassword
+            password: hashedMaestro
         }
     });
 
@@ -89,7 +98,7 @@ async function main() {
         { year: 2022, uma: 96.22, inpc: 120.25, smdf: 172.87, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2023, uma: 103.74, inpc: 128.50, smdf: 207.44, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2024, uma: 108.57, inpc: 133.45, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2025, uma: 113.14, inpc: 138.20, smdf: 268.91, source: "DOF/INEGI Official Bulletin (Local Sync)" },
+        { year: 2025, uma: 113.14, inpc: 138.20, smdf: 278.80, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2026, uma: 117.31, inpc: 142.10, smdf: 315.04, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2027, uma: 122.38, inpc: 146.50, smdf: 330.79, source: "Estimated Projection (Proyección Estimada)" },
         { year: 2028, uma: 127.28, inpc: 151.00, smdf: 347.33, source: "Estimated Projection (Proyección Estimada)" },

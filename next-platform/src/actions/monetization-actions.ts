@@ -18,7 +18,7 @@ export async function upgradeTierAction(tier: Tier) {
 
     // C4 Guard: Disable direct monetization upgrade bypass in production for non-admin accounts
     if (process.env.NODE_ENV === 'production' && (session.user as any).role !== 'ADMIN') {
-        throw new Error("El upgrade directo de tier está deshabilitado en producción.");
+        return { success: false, error: "El upgrade directo de tier está deshabilitado en producción." };
     }
 
     try {

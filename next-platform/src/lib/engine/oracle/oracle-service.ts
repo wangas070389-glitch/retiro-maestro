@@ -18,7 +18,9 @@ export class OracleService {
      */
     static async fetchLatestAnchors(): Promise<LegalAnchors> {
         try {
+            const currentYear = new Date().getFullYear();
             const override = await db.economicAnchor.findFirst({
+                where: { year: currentYear },
                 orderBy: { createdAt: 'desc' },
             });
 
