@@ -7,16 +7,14 @@ import { useSimulationStore } from '../../../store';
 import { getSealedDossiersAction, verifyDossierIntegrityAction } from '../../../actions/authority-actions';
 import { useEffect, useState, useMemo } from 'react';
 import { useSession } from 'next-auth/react';
-import legalData from '@/lib/data/legal-anchors.json';
-import { generatePaymentCalendar, M40MonthlyPayment } from '../../../lib/engine/m40-calculator';
 import { calculateProjectionAction } from '../../../actions/calculate-pension';
 import { useToast } from '../../../components/ui/toast-context';
 import { useSearchParams } from 'next/navigation';
 
 import { AdvisorBridge } from './_components/AdvisorBridge';
 import { DocumentHub } from './_components/DocumentHub';
-import { AuditDossier } from './_components/AuditDossier';
-import { OraclePulse } from './_components/OraclePulse';
+import { ReportsExplorer } from './_components/ReportsExplorer';
+import { TrámiteChecklist } from './_components/TrámiteChecklist';
 
 export default function AuthorityPage() {
     const { data: session } = useSession();
@@ -171,27 +169,6 @@ export default function AuthorityPage() {
         if (currentResidency) setResidencyStateInput(currentResidency);
     }, [currentResidency]);
 
-    const activeDossier = useMemo(() => {
-        return dossiers.find(d => d.id === selectedDossierId) || null;
-    }, [dossiers, selectedDossierId]);
-
-    const m40Dossier = useMemo(() => {
-        if (activeDossier) {
-            const isM40 = activeDossier.name.includes("CUSTOM") || activeDossier.name.includes("OPTIMIZADA");
-            const hasInvestment = (activeDossier.result?.investment > 0) || (activeDossier.result?.totalInversion > 0);
-            if (isM40 || hasInvestment) return activeDossier;
-        }
-        return null;
-    }, [activeDossier]);
-
-    const calendarData: M40MonthlyPayment[] = useMemo(() => {
-        if (!m40Dossier) return [];
-        const salary = m40Dossier.result.capped_salary || 0;
-        if (salary <= 0) return [];
-        const now = new Date();
-        return generatePaymentCalendar(salary, now.getFullYear(), now.getMonth() + 1, 4);
-    }, [m40Dossier]);
-
     if (!mounted) return null;
 
     return (
@@ -207,10 +184,10 @@ export default function AuthorityPage() {
                             <ShieldCheck size={16} className="text-emerald-500" />
                             <span className="text-[10px] font-bold tracking-widest uppercase text-slate-500">Sistema Certificado y Seguro</span>
                         </div>
-                        <h1 className="text-4xl font-black text-slate-900 tracking-tight">Expediente Legal Validado</h1>
+                        <h1 className="text-4xl font-black text-slate-900 dark:text-white tracking-tight">Expediente Legal Validado</h1>
                     </div>
                 </div>
-                <p className="text-slate-500 text-lg mt-2 ml-[88px] max-w-2xl leading-relaxed">
+                <p className="text-slate-500 dark:text-slate-400 text-lg mt-2 ml-[88px] max-w-2xl leading-relaxed">
                     Acceso a documentos certificados y validaciones normativas. Todo el respaldo legal para tu trámite de jubilación en un solo lugar.
                 </p>
             </div>
@@ -229,44 +206,50 @@ export default function AuthorityPage() {
                 advisorEmail={advisorEmail}
             />
 
-            {/* ZONE 1: Operativo */}
-            <DocumentHub
-                isLocked={isLocked}
-                isB2C={isB2C}
-                userProfile={userProfile}
-                calendarData={calendarData}
-            />
+            {/* Main Section: Document and Reports + Requirements Checklist */}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Left Column: Letter Generator & Reports Explorer */}
+                <div className="lg:col-span-7 space-y-8 flex flex-col">
+                    <div>
+                        <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight mb-6 flex items-center gap-2">
+                            <div className="w-8 h-px bg-slate-300"></div>
+                            Trámites y Documentación Oficial
+                            <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
+                        </h2>
+                        
+                        <div className="space-y-8">
+                            <DocumentHub
+                                isLocked={isLocked}
+                                isB2C={isB2C}
+                                userProfile={userProfile}
+                            />
+                            
+                            <ReportsExplorer
+                                isLocked={isLocked}
+                                isB2C={isB2C}
+                                dossiers={dossiers}
+                                selectedDossierId={selectedDossierId}
+                                setSelectedDossierId={setSelectedDossierId}
+                                projectionForPdf={projectionForPdf}
+                                userProfile={userProfile}
+                                session={session}
+                                showToast={showToast}
+                            />
+                        </div>
+                    </div>
+                </div>
 
-            {/* ZONE 2: Seguridad y Auditoría */}
-            <div>
-                <h2 className="text-xl font-bold text-slate-800 tracking-tight mb-6 flex items-center gap-2">
-                    <div className="w-8 h-px bg-slate-300"></div>
-                    Certificaciones y Respaldo de Datos
-                    <div className="flex-1 h-px bg-slate-200"></div>
-                </h2>
-                <div className="grid grid-cols-1 lg:grid-cols-[1fr_380px] gap-8">
-                    {/* Dossier Soberano */}
-                    <AuditDossier
-                        isLocked={isLocked}
-                        isB2C={isB2C}
-                        dossiers={dossiers}
-                        selectedDossierId={selectedDossierId}
-                        setSelectedDossierId={setSelectedDossierId}
-                        verifying={verifying}
-                        handleVerify={handleVerify}
-                        projectionForPdf={projectionForPdf}
-                        userProfile={userProfile}
-                        session={session}
-                        showToast={showToast}
-                    />
-
-                    {/* Oracle Pulse */}
-                    <OraclePulse
-                        isLocked={isLocked}
-                        isB2C={isB2C}
-                        legalData={legalData}
-                        showToast={showToast}
-                    />
+                {/* Right Column: Interactive Checklist */}
+                <div className="lg:col-span-5 flex flex-col">
+                    <h2 className="text-xl font-bold text-slate-800 dark:text-slate-200 tracking-tight mb-6 flex items-center gap-2">
+                        <div className="w-8 h-px bg-slate-300"></div>
+                        Validación de Expediente
+                        <div className="flex-1 h-px bg-slate-200 dark:bg-slate-800"></div>
+                    </h2>
+                    
+                    <div className="flex-1">
+                        <TrámiteChecklist />
+                    </div>
                 </div>
             </div>
         </div>

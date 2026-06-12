@@ -6,7 +6,11 @@ const prisma = new PrismaClient();
 async function main() {
     console.log("=== INICIANDO SECUENCIA DE SEED ACTUARIAL (THE ORACLE INCEPTION) ===");
 
-    const hashedPassword = await bcrypt.hash('admin123', 10);
+    const seedPassword = process.env.SEED_USER_PASSWORD;
+    if (!seedPassword) {
+        throw new Error("ERROR CRÍTICO: La variable de entorno SEED_USER_PASSWORD no está definida. Se requiere para sembrar credenciales seguras.");
+    }
+    const hashedPassword = await bcrypt.hash(seedPassword, 10);
 
     // 1. Seed System Admins & Sovereign Roles
     const admin = await prisma.user.upsert({
@@ -31,12 +35,12 @@ async function main() {
         where: { email: 'sovereign@retiromaestro.com' },
         update: {
             isApproved: true,
-            password: await bcrypt.hash('Freedom123!', 10),
+            password: hashedPassword,
         },
         create: {
             email: 'sovereign@retiromaestro.com',
             name: 'Sovereign Citizen',
-            password: await bcrypt.hash('Freedom123!', 10),
+            password: hashedPassword,
             isApproved: true,
         }
     });
@@ -48,7 +52,7 @@ async function main() {
             tier: 'ESENCIAL',
             role: 'USER',
             isApproved: true,
-            password: await bcrypt.hash('Esencial123!', 10)
+            password: hashedPassword
         },
         create: {
             email: 'esencial@retiromaestro.com',
@@ -56,7 +60,7 @@ async function main() {
             tier: 'ESENCIAL',
             role: 'USER',
             isApproved: true,
-            password: await bcrypt.hash('Esencial123!', 10)
+            password: hashedPassword
         }
     });
 
@@ -66,7 +70,7 @@ async function main() {
             tier: 'MAESTRO',
             role: 'USER',
             isApproved: true,
-            password: await bcrypt.hash('Maestro123!', 10)
+            password: hashedPassword
         },
         create: {
             email: 'maestro@retiromaestro.com',
@@ -74,7 +78,7 @@ async function main() {
             tier: 'MAESTRO',
             role: 'USER',
             isApproved: true,
-            password: await bcrypt.hash('Maestro123!', 10)
+            password: hashedPassword
         }
     });
 
@@ -85,12 +89,12 @@ async function main() {
         { year: 2022, uma: 96.22, inpc: 120.25, smdf: 172.87, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2023, uma: 103.74, inpc: 128.50, smdf: 207.44, source: "DOF/INEGI Official Bulletin (Local Sync)" },
         { year: 2024, uma: 108.57, inpc: 133.45, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2025, uma: 115.11, inpc: 138.20, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2026, uma: 117.67, inpc: 142.10, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2027, uma: 122.38, inpc: 146.50, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2028, uma: 127.28, inpc: 151.00, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2029, uma: 132.37, inpc: 155.60, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
-        { year: 2030, uma: 137.66, inpc: 160.30, smdf: 248.93, source: "DOF/INEGI Official Bulletin (Local Sync)" },
+        { year: 2025, uma: 113.14, inpc: 138.20, smdf: 268.91, source: "DOF/INEGI Official Bulletin (Local Sync)" },
+        { year: 2026, uma: 117.31, inpc: 142.10, smdf: 315.04, source: "DOF/INEGI Official Bulletin (Local Sync)" },
+        { year: 2027, uma: 122.38, inpc: 146.50, smdf: 330.79, source: "Estimated Projection (Proyección Estimada)" },
+        { year: 2028, uma: 127.28, inpc: 151.00, smdf: 347.33, source: "Estimated Projection (Proyección Estimada)" },
+        { year: 2029, uma: 132.37, inpc: 155.60, smdf: 364.70, source: "Estimated Projection (Proyección Estimada)" },
+        { year: 2030, uma: 137.66, inpc: 160.30, smdf: 382.94, source: "Estimated Projection (Proyección Estimada)" },
     ];
 
     console.log("Seeding UMA & INPC arrays (2020-2030)...");

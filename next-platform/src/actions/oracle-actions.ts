@@ -6,6 +6,14 @@ import { revalidatePath } from "next/cache";
 
 export async function syncEconomicAnchorsAction() {
     try {
+        const { auth } = await import('@/auth');
+        const session = await auth();
+
+        // RBAC Enforcement (ADR-029)
+        if (session?.user?.role !== "ADMIN") {
+            return { success: false, error: "Unauthorized. Admin privileges required." };
+        }
+
         const latest = await OracleService.fetchLatestAnchors();
 
         // Persist to database

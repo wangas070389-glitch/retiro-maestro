@@ -316,7 +316,7 @@ function DashboardContent() {
                                     <button
                                         onClick={() => setAdminViewMode('ADMIN')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                            adminViewMode === 'ADMIN'
+                                            (adminViewMode as string) === 'ADMIN'
                                                 ? 'bg-white text-slate-950 shadow-md scale-100'
                                                 : 'text-slate-200 hover:bg-white/10 hover:text-white'
                                         }`}
@@ -326,7 +326,7 @@ function DashboardContent() {
                                     <button
                                         onClick={() => setAdminViewMode('ADVISOR')}
                                         className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                            adminViewMode === 'ADVISOR'
+                                            (adminViewMode as string) === 'ADVISOR'
                                                 ? 'bg-white text-slate-950 shadow-md scale-100'
                                                 : 'text-slate-200 hover:bg-white/10 hover:text-white'
                                         }`}
@@ -557,7 +557,7 @@ function DashboardContent() {
                                 <button
                                     onClick={() => setAdminViewMode('ADMIN')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                        adminViewMode === 'ADMIN'
+                                        (adminViewMode as string) === 'ADMIN'
                                             ? 'bg-white text-slate-950 shadow-md scale-100'
                                             : 'text-slate-200 hover:bg-white/10 hover:text-white'
                                     }`}
@@ -567,7 +567,7 @@ function DashboardContent() {
                                 <button
                                     onClick={() => setAdminViewMode('ADVISOR')}
                                     className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 ${
-                                        adminViewMode === 'ADVISOR'
+                                        (adminViewMode as string) === 'ADVISOR'
                                             ? 'bg-white text-slate-950 shadow-md scale-100'
                                             : 'text-slate-200 hover:bg-white/10 hover:text-white'
                                     }`}

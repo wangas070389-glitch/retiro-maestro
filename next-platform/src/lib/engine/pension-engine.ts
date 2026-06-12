@@ -9,6 +9,7 @@ export interface PensionInput {
   children_count: number;
   dependent_parents_count: number;
   anchor_salary?: number; // Optional override for UMA/SMDF
+  anchor_smdf?: number; // Optional override for SMDF
   days_per_month?: number; // Optional override for monthly factor (default 30.416 or book's 30)
   inflation_percentage?: number; // Optional INPC adjustment (e.g. 10.22 for 1.1022)
   retirement_age?: number; // Target age for strategies (default 65)
@@ -47,10 +48,11 @@ export interface PensionResult {
 
 export class PensionEngine {
   public calculate(input: PensionInput): PensionResult {
-    const { weeks, salary_prom, age, has_wife, children_count, dependent_parents_count, anchor_salary, days_per_month, inflation_percentage } = input;
+    const { weeks, salary_prom, age, has_wife, children_count, dependent_parents_count, anchor_salary, anchor_smdf, days_per_month, inflation_percentage } = input;
 
     // 1. Calculate Salary Multiplier (n) with Legal Caps
     const effective_anchor = anchor_salary || legalData.uma_2026;
+    const effective_smdf = anchor_smdf || legalData.smdf_2026;
 
     // RED-002 Mitigation: Cap registration salary at 25 UMAs as per IMSS law
     const capped_salary = Math.min(salary_prom, effective_anchor * 25);
@@ -134,7 +136,14 @@ export class PensionEngine {
     // To get monthly: (Total Daily) * 30.
     const total_daily = total_with_allowances / 365;
     const total_monthly = total_daily * effective_days_per_month;
-    const with_decree = (total_with_decree / 365) * effective_days_per_month;
+    
+    const raw_with_decree = (total_with_decree / 365) * effective_days_per_month;
+    
+    // Minimum Guaranteed Pension Floor (Art. 168 Ley 73)
+    // 1 SMDF (daily base) + 11% decree factor, monthly scaled
+    const minimum_pension_daily = effective_smdf * 1.11;
+    const minimum_pension_monthly = minimum_pension_daily * effective_days_per_month;
+    const with_decree = Math.max(raw_with_decree, minimum_pension_monthly);
 
     // 9. Inflation Adjustment (Optional)
     const inflation_rate = (inflation_percentage || 0) / 100;
@@ -247,11 +256,15 @@ export class PensionEngine {
       }
 
       // 5. Run Calculation
+      const simYear = currentYear + i;
+      const yearlyConfig = (legalData.yearly_anchors as any)[simYear.toString()];
       const simInput = {
         ...input,
         age: simAge,
         weeks: simWeeks,
-        salary_prom: simSalaryProm
+        salary_prom: simSalaryProm,
+        anchor_salary: yearlyConfig ? yearlyConfig.uma : (input.anchor_salary || legalData.uma_2026),
+        anchor_smdf: yearlyConfig ? yearlyConfig.smdf : (input.anchor_smdf || legalData.smdf_2026)
       };
 
       const result = this.calculate(simInput);

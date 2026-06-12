@@ -106,7 +106,8 @@ export async function calculatePensionAction(formData: FormData | PensionInput):
             ...validatedFields.data,
             age: projection.age,
             weeks: projection.weeks,
-            anchor_salary: validatedFields.data.anchor_salary || anchors.uma
+            anchor_salary: validatedFields.data.anchor_salary || anchors.uma,
+            anchor_smdf: anchors.smdf
         };
 
         const engine = new PensionEngine();
@@ -158,7 +159,8 @@ export async function calculateProjectionAction(
     const anchors = await OracleService.fetchLatestAnchors();
     const inputWithAnchor = {
         ...input,
-        anchor_salary: input.anchor_salary || anchors.uma
+        anchor_salary: input.anchor_salary || anchors.uma,
+        anchor_smdf: input.anchor_smdf || anchors.smdf
     };
 
     const engine = new PensionEngine();
@@ -205,7 +207,8 @@ export async function calculateStrategiesAction(input: PensionInput) {
     const anchors = await OracleService.fetchLatestAnchors();
     const inputWithAnchor = {
         ...input,
-        anchor_salary: input.anchor_salary || anchors.uma
+        anchor_salary: input.anchor_salary || anchors.uma,
+        anchor_smdf: input.anchor_smdf || anchors.smdf
     };
 
     const engine = new PensionEngine();
@@ -366,7 +369,8 @@ export async function calculateInverseDesignAction(input: PensionInput, targetPe
     const anchors = await OracleService.fetchLatestAnchors();
     const inputWithAnchor = {
         ...input,
-        anchor_salary: input.anchor_salary || anchors.uma
+        anchor_salary: input.anchor_salary || anchors.uma,
+        anchor_smdf: input.anchor_smdf || anchors.smdf
     };
 
     const engine = new PensionEngine();
@@ -410,7 +414,8 @@ export async function getMaxPossiblePensionAction(input: PensionInput) {
     const anchors = await OracleService.fetchLatestAnchors();
     const inputWithAnchor = {
         ...input,
-        anchor_salary: input.anchor_salary || anchors.uma
+        anchor_salary: input.anchor_salary || anchors.uma,
+        anchor_smdf: input.anchor_smdf || anchors.smdf
     };
 
     const engine = new PensionEngine();

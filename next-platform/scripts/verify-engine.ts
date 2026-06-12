@@ -35,7 +35,7 @@ if (Math.abs(result.with_decree_111 - 1777.10) < 1.0) {
 console.log("\n--- RED TEAM AUDIT TESTS ---");
 
 // Test CASE 2: Illegal Salary (Greater than 25 UMAs)
-const uma = 117.67; // 2026 UMA
+const uma = 117.31; // 2026 UMA
 const illegalSalary = 10000; // $10,000 MXN daily (Illegal)
 const cappedSalary = uma * 25; // ~$2,941 (Legal Limit)
 
